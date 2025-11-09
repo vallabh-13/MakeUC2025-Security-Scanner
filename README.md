@@ -1,7 +1,19 @@
-# Security Scanner
+# 🛡️ AegisScan: The All-in-One Web Security Platform
+> **Instant, comprehensive web security analysis** to make preventable attacks a thing of the past.
 
-Problem      : Web security analysis is often manual, time-consuming, and requires specialized tools, as well as leaving many websites vulnerable to easily preventable attacks. 
-Our Solution : A web application designed to scan websites for security vulnerabilities, detect software, and generate reports which solves this critical gap by providing an essential, all-in-one web application.
+### 🎥 Live Demo
+👉 *(Add link here if deployed)*
+
+### 📸 UI Screenshot
+*(Insert high-impact GIF or screenshot here)*
+
+---
+
+## 🔥 Why We Built This
+* **The Problem:** Web security analysis is **manual**, **slow**, and **requires multiple tools**, leaving many websites vulnerable to preventable attacks.
+* **The Solution:** **AegisScan** automates scanning, software detection, and reporting into **one simple web app**—no command-line expertise required.
+
+---
 
 ## Table of Contents
 
