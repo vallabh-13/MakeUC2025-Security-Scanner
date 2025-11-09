@@ -18,14 +18,14 @@ import React from 'react';
     }
 
     const ScanForm: React.FC<ScanFormProps> = ({ onScanStart, isScanning }) => {
-      const { register, handleSubmit, formState: { errors } } = useForm<ScanFormData>({
+      const { register, handleSubmit } = useForm<ScanFormData>({
         resolver: zodResolver(scanSchema)
       });
 
       const onSubmit = async (data: ScanFormData) => {
         try {
           onScanStart(data.url);
-        } catch (error) {
+        } catch {
           toast.error('Failed to start scan');
         }
       };
@@ -58,9 +58,6 @@ import React from 'react';
                 />
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-zinc-400" />
               </div>
-              {errors.url && (
-                <p className="mt-2 text-sm text-red-600">{errors.url.message}</p>
-              )}
             </div>
             
             <button
