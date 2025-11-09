@@ -7,8 +7,8 @@
 ---
 
 ## 🔥 Why We Built This
-* **The Problem:** Web security analysis is **manual**, **slow**, and **requires multiple tools**, leaving many websites vulnerable to preventable attacks.
-* **The Solution:** **SecurityScanner** automates scanning, software detection, and reporting into **one simple web app**—no command-line expertise required.
+* **The Problem:** Web security analysis is **manual**, **slow**, and **requires multiple tools**, leaving many websites vulnerable to  attacks.
+* **The Solution:** **SecurityScanner** automates all vulnerability scans and reporting with no command-line tools needed
 
 ---
 
