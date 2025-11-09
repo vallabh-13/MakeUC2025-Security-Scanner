@@ -28,10 +28,16 @@ import React, { useState, useEffect } from 'react';
     const MainPage: React.FC = () => {
       const [isScanning, setIsScanning] = useState(false);
       const [scanResults, setScanResults] = useState<ScanResult | null>(null);
+      const [isDarkMode, setIsDarkMode] = useState(true);
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
       }, []);
+
+      const toggleDarkMode = () => {
+        setIsDarkMode(!isDarkMode);
+        document.documentElement.classList.toggle('dark');
+      };
 
       const handleScanStart = async (url: string) => {
         setIsScanning(true);
@@ -60,7 +66,7 @@ import React, { useState, useEffect } from 'react';
           const results = await scanResponse.json();
           setScanResults(results);
           toast.success('Scan completed successfully!');
-        } catch (error) {
+        } catch {
           // Mock results for demo purposes when backend is not available
           toast.info('Using demo results - connect backend for live scanning');
           
@@ -225,8 +231,8 @@ import React, { useState, useEffect } from 'react';
       ];
 
       return (
-        <div className="min-h-screen bg-zinc-900 transition-colors duration-300">
-          <Header scrollToSection={scrollToSection} />
+        <div className={`min-h-screen ${isDarkMode ? 'bg-zinc-900' : 'bg-white'} transition-colors duration-300`}>
+          <Header scrollToSection={scrollToSection} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
           
           {/* Home Section */}
           <section id="home" className="py-12">
@@ -237,13 +243,12 @@ import React, { useState, useEffect } from 'react';
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <motion.h1 
-                  className="text-4xl md:text-6xl font-bold mb-6 text-white"
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
-                >
-                  Security Scanner
+                                <motion.h1
+                                  className={`text-4xl md:text-6xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}
+                                  initial={{ scale: 0.8 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ delay: 0.2, duration: 0.5 }}
+                                >                  Security Scanner
                 </motion.h1>
                 <motion.p 
                   className="text-xl text-slate-400 max-w-3xl mx-auto"
@@ -453,7 +458,7 @@ import React, { useState, useEffect } from 'react';
               
             </div>
           </section>
-          <Footer/>
+          <Footer isDarkMode={isDarkMode} />
         </div>
       );
     };

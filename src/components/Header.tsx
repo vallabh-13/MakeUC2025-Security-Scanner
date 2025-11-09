@@ -1,12 +1,14 @@
 import React from 'react';
-    import { Shield, Github } from 'lucide-react';
+    import { Shield, Github, Sun, Moon } from 'lucide-react';
     import { motion } from 'framer-motion';
 
     interface HeaderProps {
       scrollToSection: (sectionId: string) => void;
+      isDarkMode: boolean;
+      toggleDarkMode: () => void;
     }
 
-    const Header: React.FC<HeaderProps> = ({ scrollToSection }) => {
+    const Header: React.FC<HeaderProps> = ({ scrollToSection, isDarkMode, toggleDarkMode }) => {
       const navItems = [
         { name: 'Home', id: 'home' },
         { name: 'Demo', id: 'demo' },
@@ -45,6 +47,12 @@ import React from 'react';
                 >
                   <Github className="h-5 w-5" />
                 </motion.a>
+                <button
+                  onClick={toggleDarkMode}
+                  className="p-2 rounded-lg transition-colors hover:bg-zinc-700 text-slate-400 hover:text-white"
+                >
+                  {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                </button>
               </div>
             </div>
             <div className="md:hidden flex justify-center space-x-4 py-2 border-t border-slate-700">

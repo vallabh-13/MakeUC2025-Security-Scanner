@@ -1,5 +1,5 @@
 import React from 'react';
-import { Twitter, Mail, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 interface FooterProps {
   isDarkMode: boolean;
