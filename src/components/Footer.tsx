@@ -23,7 +23,7 @@ const Footer: React.FC<FooterProps> = ({ isDarkMode }) => {
             </div>
       
             <p className="text-slate-400 mb-4">
-              <strong>Team:</strong> Logic Scapes | <strong>Project:</strong> Security-Scanner
+              <strong>Team:</strong> Secure Scan | <strong>Project:</strong> Security-Scanner
             </p>
             <div className="flex space-x-4 justify-center">
             </div>
