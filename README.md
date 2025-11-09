@@ -1,5 +1,5 @@
-# 🛡️ AegisScan: The All-in-One Web Security Platform
-> **Instant, comprehensive web security analysis** to make preventable attacks a thing of the past.
+# 🛡️ Secure Scanner
+> **Instant, comprehensive web security analysis** 
 
 ### 🎥 Live Demo
 👉 *(Add link here if deployed)*
