@@ -48,7 +48,8 @@ function parseSSLResults(data) {
         title: `Weak SSL/TLS Configuration (Grade: ${grade})`,
         description: 'SSL/TLS configuration could be improved',
         cwe: 'CWE-326',
-        owasp: 'A02:2021 - Cryptographic Failures'
+        owasp: 'A02:2021 - Cryptographic Failures',
+        recommendation: 'Improve SSL/TLS configuration by enabling strong cipher suites, implementing HSTS, and ensuring proper certificate chain validation. Consider using modern TLS protocols only.'
       });
     }
     
@@ -61,7 +62,8 @@ function parseSSLResults(data) {
             title: `Outdated TLS Version: ${proto.version}`,
             description: 'TLS versions below 1.2 are insecure',
             cwe: 'CWE-327',
-            owasp: 'A02:2021 - Cryptographic Failures'
+            owasp: 'A02:2021 - Cryptographic Failures',
+            recommendation: 'Disable TLS 1.0 and 1.1. Configure your server to only support TLS 1.2 and TLS 1.3. Update server software to the latest version that supports modern TLS protocols.'
           });
         }
       });

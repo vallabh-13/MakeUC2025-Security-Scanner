@@ -13,8 +13,9 @@ async function scanWithNuclei(url) {
   const findings = [];
   
   try {
-    // Create temporary output file
-    const outputFile = path.join('/tmp', `nuclei-${Date.now()}.json`);
+    // Create temporary output file (cross-platform)
+    const os = require('os');
+    const outputFile = path.join(os.tmpdir(), `nuclei-${Date.now()}.json`);
     
     // Nuclei command:
     // -u: Target URL
@@ -24,7 +25,8 @@ async function scanWithNuclei(url) {
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
-    const command = `nuclei -t ~/nuclei-templates -u "${url}" -jsonl -severity critical,high,medium -o ${outputFile} -timeout 30 -rate-limit 50 -silent`;
+    // Note: -t flag removed to use default templates location
+    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent`;
     
     console.log('Running Nuclei scan...');
     
@@ -48,6 +50,20 @@ async function scanWithNuclei(url) {
         const result = JSON.parse(line);
         
         // Extract relevant information
+        // Handle remediation - ensure it's a string
+        let recommendation = '';
+        if (result.info.remediation) {
+          if (typeof result.info.remediation === 'string') {
+            recommendation = result.info.remediation.trim();
+          } else if (Array.isArray(result.info.remediation)) {
+            recommendation = result.info.remediation.join('. ').trim();
+          }
+        }
+        // If still empty, generate a recommendation
+        if (!recommendation) {
+          recommendation = generateRemediation(result.info.name);
+        }
+
         findings.push({
           severity: result.info.severity.toLowerCase(),
           title: result.info.name,
@@ -59,7 +75,7 @@ async function scanWithNuclei(url) {
           cvss: extractCVSS(result),
           tags: result.info.tags || [],
           reference: result.info.reference || [],
-          remediation: result.info.remediation || generateRemediation(result.info.name)
+          recommendation: recommendation
         });
         
       } catch (e) {
@@ -129,18 +145,25 @@ function extractCVSS(result) {
  * @returns {string} - Remediation advice
  */
 function generateRemediation(vulnerabilityName) {
+  if (!vulnerabilityName) {
+    return 'Review the vulnerability details and apply the recommended security patches. Consult security documentation for specific remediation steps.';
+  }
+
   const lowerName = vulnerabilityName.toLowerCase();
-  
-  if (lowerName.includes('xss') || lowerName.includes('cross-site scripting')) {
-    return 'Implement proper input validation and output encoding. Use Content Security Policy (CSP) headers.';
+
+  // XSS vulnerabilities
+  if (lowerName.includes('xss') || lowerName.includes('cross-site scripting') || lowerName.includes('reflected') && lowerName.includes('script')) {
+    return 'Implement proper input validation and output encoding. Sanitize all user inputs. Use Content Security Policy (CSP) headers to prevent script execution.';
   }
-  
-  if (lowerName.includes('sql injection')) {
-    return 'Use parameterized queries or prepared statements. Never concatenate user input into SQL queries.';
+
+  // SQL Injection vulnerabilities
+  if (lowerName.includes('sql') || lowerName.includes('sqli') || lowerName.includes('injection')) {
+    return 'Use parameterized queries or prepared statements. Never concatenate user input into SQL queries. Implement proper input validation and use an ORM framework.';
   }
-  
-  if (lowerName.includes('path traversal') || lowerName.includes('directory traversal')) {
-    return 'Validate and sanitize file paths. Use whitelist of allowed paths. Avoid using user input in file operations.';
+
+  // Path/Directory Traversal vulnerabilities
+  if (lowerName.includes('path traversal') || lowerName.includes('directory traversal') || lowerName.includes('lfi') || lowerName.includes('file inclusion')) {
+    return 'Validate and sanitize all file paths. Use a whitelist of allowed paths. Implement proper access controls. Avoid using user input directly in file operations.';
   }
   
   if (lowerName.includes('exposed') || lowerName.includes('disclosure')) {
@@ -173,12 +196,10 @@ function generateRemediation(vulnerabilityName) {
 async function checkNucleiInstallation() {
   try {
     const { stdout: version } = await execPromise('nuclei -version');
-    const { stdout: templates } = await execPromise('ls ~/nuclei-templates/ | wc -l');
-    
+
     return {
       installed: true,
-      version: version.trim(),
-      templateCount: parseInt(templates.trim()) || 0
+      version: version.trim()
     };
   } catch (error) {
     return {

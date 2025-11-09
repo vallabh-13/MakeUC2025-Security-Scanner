@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@radix-ui/react-tabs';
-import { Shield, Server, AlertTriangle, Bug, Download, CheckCircle, XCircle, BarChart } from 'lucide-react';
+import { AlertTriangle, Bug, Download, CheckCircle, BarChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ScanResult {

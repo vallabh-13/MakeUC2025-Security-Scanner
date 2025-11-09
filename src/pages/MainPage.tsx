@@ -66,6 +66,8 @@ import React, { useState, useEffect } from 'react';
 
       scannedAt: string;
 
+      url?: string;
+
       scanErrors: {
 
         ssl: string | null;
@@ -89,26 +91,66 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         document.documentElement.classList.add('dark');
 
-        const newSocket = io('http://localhost:3001');
+        const socketUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const newSocket = io(socketUrl);
         setSocket(newSocket);
 
         newSocket.on('scan:progress', (data) => {
-          toast.info(data.message);
+          // Only show toasts for key progress steps
+          const importantSteps = ['start', 'detection', 'parallel-scans', 'aggregate'];
+          if (importantSteps.includes(data.step)) {
+            toast.info(data.message, {
+              style: {
+                background: '#000000',
+                color: '#ffffff',
+                border: '1px solid #333333'
+              }
+            });
+          }
         });
 
         newSocket.on('scan:step-complete', (data) => {
-          toast.success(`${data.step} complete!`);
+          // Only show completion toasts for main scan steps
+          const mainSteps = ['detection', 'ssl', 'ports', 'nuclei', 'cve'];
+          if (mainSteps.includes(data.step)) {
+            const stepNames = {
+              'detection': 'Technology Detection',
+              'ssl': 'SSL/TLS Analysis',
+              'ports': 'Port Scanning',
+              'nuclei': 'Vulnerability Scanning',
+              'cve': 'CVE Database Check'
+            };
+            toast.success(`${stepNames[data.step]} complete!`, {
+              style: {
+                background: '#000000',
+                color: '#ffffff',
+                border: '1px solid #22c55e'
+              }
+            });
+          }
         });
 
         newSocket.on('scan:complete', (data) => {
           setScanResults(data.results);
           setIsScanning(false);
-          toast.success('Scan completed successfully!');
+          toast.success('Scan completed successfully!', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #22c55e'
+            }
+          });
         });
 
         newSocket.on('scan:failed', (data) => {
           setIsScanning(false);
-          toast.error(data.error);
+          toast.error(data.error, {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #ef4444'
+            }
+          });
         });
 
         return () => {
@@ -124,7 +166,7 @@ import React, { useState, useEffect } from 'react';
       const handleScanStart = async (url: string) => {
         setIsScanning(true);
         setScanResults(null);
-        
+
         try {
           // Check backend health first
           const healthResponse = await fetch('/api/health');
@@ -138,24 +180,32 @@ import React, { useState, useEffect } from 'react';
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url, socketId: socket.id }),
+            body: JSON.stringify({ url, socketId: socket?.id }),
           });
 
           if (!scanResponse.ok) {
-            throw new Error('Scan failed');
+            const errorData = await scanResponse.json().catch(() => ({ error: 'Scan failed' }));
+            throw new Error(errorData.error || 'Scan failed');
           }
 
-        } catch (error) {
+        } catch (error: any) {
           setIsScanning(false);
-          toast.error(error.message);
+          toast.error(error.message || 'An error occurred', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #ef4444'
+            }
+          });
         }
       };
 
       const handleDownloadReport = async () => {
         if (!scanResults) return;
-        
+
         try {
-          const response = await fetch(`/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${scanResults.url}`);
+          const targetUrl = scanResults.url || 'Unknown';
+          const response = await fetch(`/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${encodeURIComponent(targetUrl)}`);
           if (!response.ok) {
             throw new Error('Failed to download report');
           }
@@ -168,8 +218,21 @@ import React, { useState, useEffect } from 'react';
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-        } catch (error) {
-          toast.error(error.message);
+          toast.success('Report downloaded successfully!', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #22c55e'
+            }
+          });
+        } catch (error: any) {
+          toast.error(error.message || 'Failed to download report', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #ef4444'
+            }
+          });
         }
       };
 
@@ -247,7 +310,7 @@ import React, { useState, useEffect } from 'react';
         {
           icon: <Shield className="h-8 w-8" />,
           title: 'SSL Labs Analysis',
-          description: 'Performs comprehensive SSL certificate analysis using SSL Labs API to check encryption strength and configuration.'
+          description: 'Performs comprehensive SSL certificate analysis using SSL Labs to check encryption strength and configuration.'
         },
         {
           icon: <AlertTriangle className="h-8 w-8" />,

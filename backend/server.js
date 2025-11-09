@@ -21,14 +21,18 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
+    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Rate limiting
@@ -166,7 +170,6 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     scanPromises.push(
       (async () => {
         try {
-          emit('scan:progress', { step: 'ssl', message: 'Analyzing SSL/TLS configuration...' });
           const sslResults = await scanSSL(hostname);
           results.ssl = sslResults;
           emit('scan:step-complete', { step: 'ssl', data: sslResults });
@@ -183,7 +186,6 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     scanPromises.push(
       (async () => {
         try {
-          emit('scan:progress', { step: 'ports', message: 'Scanning ports and services...' });
           const nmapResults = await scanPorts(hostname);
           results.nmap = nmapResults;
           emit('scan:step-complete', { step: 'ports', data: nmapResults });
@@ -200,7 +202,6 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     scanPromises.push(
       (async () => {
         try {
-          emit('scan:progress', { step: 'nuclei', message: 'Running vulnerability tests...' });
           const nucleiResults = await scanWithNuclei(url);
           results.nuclei = nucleiResults;
           emit('scan:step-complete', { step: 'nuclei', data: nucleiResults });
@@ -236,7 +237,7 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     
     // Step 7: Aggregate
     emit('scan:progress', { step: 'aggregate', message: 'Generating final report...', progress: 98 });
-    
+
     const finalResults = aggregateResults(
       results.ssl || { findings: [] },
       results.nmap || { findings: [] },
@@ -244,10 +245,13 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
       results.detectedSoftware || {},
       [...quickVulns, ...(results.cve || [])]
     );
-    
+
+    // Add the scanned URL to results
+    finalResults.url = url;
+
     // Step 8: Complete
     emit('scan:complete', { results: finalResults, progress: 100 });
-    
+
     logger.info(`[${scanId}] Scan complete - Score: ${finalResults.score}/100, Issues: ${finalResults.totalIssues}`);
     
   } catch (error) {
