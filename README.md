@@ -1,6 +1,7 @@
 # Security Scanner
 
-A web application designed to scan websites for security vulnerabilities, detect software, and generate reports.
+Problem      : Web security analysis is often manual, time-consuming, and requires specialized tools, as well as leaving many websites vulnerable to easily preventable attacks. 
+Our Solution : A web application designed to scan websites for security vulnerabilities, detect software, and generate reports which solves this critical gap by providing an essential, all-in-one web application.
 
 ## Table of Contents
 
