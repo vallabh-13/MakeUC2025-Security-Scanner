@@ -10,7 +10,7 @@ import React from 'react';
       const navItems = [
         { name: 'Home', id: 'home' },
         { name: 'Demo', id: 'demo' },
-        { name: 'Working', id: 'working' },
+        { name: 'Workflow', id: 'working' },
         { name: 'Team', id: 'team' },
         { name: 'Tools', id: 'tools' },
       ];
@@ -36,7 +36,7 @@ import React from 'react';
               </nav>
               <div className="flex items-center space-x-4">
                 <motion.a
-                  href="https://github.com/meku-dev/security-scanner"
+                  href="https://github.com/vallabh-13/MakeUC2025-Security-Scanner"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-lg transition-colors hover:bg-zinc-700 text-slate-400 hover:text-white"

@@ -39,7 +39,7 @@ import React from 'react';
         >
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-4 text-white">Scan Your Website</h2>
-            <p className="text-slate-400 text-lg">Enter a URL to perform comprehensive security analysis</p>
+            <p className="text-slate-400 text-lg">Enter a URL to perform security analysis</p>
           </div>
           
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
