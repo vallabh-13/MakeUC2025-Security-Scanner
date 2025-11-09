@@ -140,32 +140,32 @@ import React, { useState, useEffect } from 'react';
 
       const teamMembers = [
         {
-          name: 'Alice Johnson',
-          role: 'Lead Developer',
-          linkedin: 'https://linkedin.com/in/alicejohnson',
-          email: 'alice@securityscanner.com',
-          image: 'https://via.placeholder.com/150'
+          name: 'An Nguyen Le',
+          role: 'Major: Computer Science',
+          linkedin: 'https://www.linkedin.com/in/an-nguyen-le-782788342/',
+          email: 'le2ne@mail.uc.com',
+          image: 'https://media.licdn.com/dms/image/v2/D4E03AQHMXm6Cfrzk-Q/profile-displayphoto-shrink_200_200/B4EZX8Z84dHkAk-/0/1743696417484?e=1764201600&v=beta&t=vwqBb4lZR5KPhOOsPtk8NughTjc8LB0kAqRGBQPP38o'
         },
         {
-          name: 'Bob Smith',
-          role: 'Security Analyst',
-          linkedin: 'https://linkedin.com/in/bobsmith',
-          email: 'bob@securityscanner.com',
-          image: 'https://via.placeholder.com/150'
+          name: 'Nhi T.Le ',
+          role: 'Major: Computer Science',
+          linkedin: 'https://www.linkedin.com/in/nhiledn06/',
+          email: 'le2nt@mail.uc.edu',
+          image: 'https://media.licdn.com/dms/image/v2/D4E03AQEQnZxscjdWcw/profile-displayphoto-scale_200_200/B4EZlZUqW1IwAc-/0/1758140213294?e=1764201600&v=beta&t=MgMCSOP_5BvnxvorAAZvLWSoSm194Tjo5XPTY9rY5Qo'
         },
         {
-          name: 'Carol Davis',
-          role: 'UI/UX Designer',
-          linkedin: 'https://linkedin.com/in/caroldavis',
-          email: 'carol@securityscanner.com',
-          image: 'https://via.placeholder.com/150'
+          name: 'Bhanudas Mahadik',
+          role: 'Major: Information technology',
+          linkedin: 'https://www.linkedin.com/in/bhanudas-mahadik/',
+          email: 'mahadibr@mail.uc.edu',
+          image: 'https://media.licdn.com/dms/image/v2/D4D03AQGXK_1nT8f8Kg/profile-displayphoto-shrink_200_200/B4DZRHPxtCHYAY-/0/1736362106020?e=1764201600&v=beta&t=C_S-sDvdyvQSd78qEM97Fqhk-qsdDtrb0BQ8AIAEMT4'
         },
         {
-          name: 'David Wilson',
-          role: 'Backend Engineer',
-          linkedin: 'https://linkedin.com/in/davidwilson',
-          email: 'david@securityscanner.com',
-          image: 'https://via.placeholder.com/150'
+          name: 'Ilyaas Kapadia',
+          role: 'Major: Computer Science',
+          linkedin: 'https://www.linkedin.com/in/ilyaask/',
+          email: 'kapadiiy@mail.uc.edu',
+          image: 'https://media.licdn.com/dms/image/v2/D5603AQGSgsjoxDe_Cg/profile-displayphoto-crop_800_800/B56Zot5UO0HIAI-/0/1761706591678?e=1764201600&v=beta&t=ox4X_vqtFDcNSI8_0CAVKFKGzQLwBO2pymsxrIea-VE'
         }
       ];
 
@@ -186,7 +186,7 @@ import React, { useState, useEffect } from 'react';
           name: 'Nuclei',
           description: 'Fast and customizable vulnerability scanner based on simple YAML-based DSL.',
           icon: <AlertTriangle className="h-8 w-8" />,
-          link: 'https://nuclei.projectdiscovery.io/'
+          link: 'https://docs.projectdiscovery.io/opensource/nuclei/overview#what-is-nuclei'
         },
         {
           name: 'CVE Database',
@@ -219,8 +219,8 @@ import React, { useState, useEffect } from 'react';
         },
         {
           icon: <Shield className="h-8 w-8" />,
-          title: 'Software Detection & CVE Matching',
-          description: 'Identifies software versions and matches them against known CVEs for comprehensive risk assessment.'
+          title: 'Results',
+          description: 'View the scan summary, access all security findings, and download the PDF report instantly.'
         }
       ];
 
@@ -251,8 +251,8 @@ import React, { useState, useEffect } from 'react';
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4, duration: 0.5 }}
                 >
-                  Comprehensive security analysis for your web applications. 
-                  Detect vulnerabilities, analyze SSL configurations, scan for open ports, and identify software versions with CVE matching.
+                  Comprehensive security analysis for your web applications. <br/>
+                  Detect vulnerabilities, analyze SSL configurations, scan for open ports, and identify common vulnerabilities and exposures.
                 </motion.p>
               </motion.div>
 
@@ -300,7 +300,7 @@ import React, { useState, useEffect } from 'react';
                   ></iframe>
                 </div>
                 <p className="text-slate-400">
-                  Watch this demo video to see the Security Scanner in action. It showcases the full scanning process, from URL input to detailed results display.
+                  Watch this demo video to see the security scanner workflow. It showcases the full scanning process, from URL input to detailed results display.
                 </p>
               </motion.div>
             </div>
@@ -318,7 +318,7 @@ import React, { useState, useEffect } from 'react';
               >
                 <h2 className="text-4xl font-bold mb-6 text-white">How It Works</h2>
                 <p className="text-xl text-slate-400 max-w-3xl mx-auto">
-                  Our Security Scanner uses a multi-layered approach to provide comprehensive security analysis for web applications.
+                  Our system runs Nmap for port scanning and Nuclei for vulnerability checks simultaneously, delivering security analysis.
                 </p>
               </motion.div>
 
@@ -344,38 +344,6 @@ import React, { useState, useEffect } from 'react';
                   </motion.div>
                 ))}
               </div>
-
-              <motion.div 
-                className="bg-zinc-800 rounded-lg shadow-lg p-8 mt-12"
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1, duration: 0.5 }}
-                viewport={{ once: true }}
-              >
-                <h3 className="text-2xl font-bold mb-4 text-white">Tools Used</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="text-center">
-                    <Shield className="h-12 w-12 mx-auto mb-2 text-indigo-400" />
-                    <h4 className="font-semibold text-white">SSL Labs</h4>
-                    <p className="text-sm text-slate-400">SSL certificate analysis</p>
-                  </div>
-                  <div className="text-center">
-                    <Search className="h-12 w-12 mx-auto mb-2 text-indigo-400" />
-                    <h4 className="font-semibold text-white">Nmap</h4>
-                    <p className="text-sm text-slate-400">Port scanning</p>
-                  </div>
-                  <div className="text-center">
-                    <AlertTriangle className="h-12 w-12 mx-auto mb-2 text-indigo-400" />
-                    <h4 className="font-semibold text-white">Nuclei</h4>
-                    <p className="text-sm text-slate-400">Vulnerability scanning</p>
-                  </div>
-                  <div className="text-center">
-                    <Bug className="h-12 w-12 mx-auto mb-2 text-indigo-400" />
-                    <h4 className="font-semibold text-white">CVE Database</h4>
-                    <p className="text-sm text-slate-400">Software vulnerability matching</p>
-                  </div>
-                </div>
-              </motion.div>
             </div>
           </section>
 
@@ -391,7 +359,7 @@ import React, { useState, useEffect } from 'react';
               >
                 <h2 className="text-4xl font-bold mb-6 text-white">Our Team</h2>
                 <p className="text-xl text-slate-400 max-w-3xl mx-auto">
-                  Meet the talented individuals behind the Security Scanner project.
+                  Meet the individuals who build the security scanner project.
                 </p>
               </motion.div>
 
@@ -446,7 +414,7 @@ import React, { useState, useEffect } from 'react';
               >
                 <h2 className="text-4xl font-bold mb-6 text-white">Tools Used</h2>
                 <p className="text-xl text-slate-400 max-w-3xl mx-auto">
-                  Our Security Scanner leverages industry-standard tools for comprehensive security analysis.
+                  Our security scanner leverages following tools for security analysis.
                 </p>
               </motion.div>
 
@@ -482,10 +450,10 @@ import React, { useState, useEffect } from 'react';
                   </motion.div>
                 ))}
               </div>
+              
             </div>
           </section>
-
-          <Footer />
+          <Footer/>
         </div>
       );
     };
