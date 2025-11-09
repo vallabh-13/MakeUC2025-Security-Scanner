@@ -6,32 +6,114 @@ import React, { useState, useEffect } from 'react';
     import ScanResults from '../components/ScanResults';
     import { toast } from 'react-toastify';
     import { Shield, Search, AlertTriangle, Bug, ExternalLink, Linkedin, Mail } from 'lucide-react';
+    import io from 'socket.io-client';
+
+
 
     interface ScanResult {
-      url: string;
-      sslLabs: {
-        grade: string;
-        score: number;
-        issues: string[];
+
+      score: number;
+
+      grade: string;
+
+      severityCounts: {
+
+        critical: number;
+
+        high: number;
+
+        medium: number;
+
+        low: number;
+
+        info: number;
+
       };
-      nmap: {
-        openPorts: Array<{ port: number; service: string; state: string }>;
+
+      findings: Array<{
+
+        severity: string;
+
+        title: string;
+
+        description: string;
+
+        recommendation: string;
+
+      }>;
+
+      detectedTechnology: {
+
+        webServer: { name: string; version: string } | null;
+
+        backend: any[];
+
+        cms: any | null;
+
+        frameworks: any[];
+
+        libraries: Array<{ name: string; version: string; issue: string }>;
+
+        technologies: any[];
+
+        services: any[];
+
       };
-      nuclei: {
-        vulnerabilities: Array<{ severity: string; title: string; description: string }>;
+
+      sslGrade: string;
+
+      totalIssues: number;
+
+      scannedAt: string;
+
+      scanErrors: {
+
+        ssl: string | null;
+
+        nmap: string | null;
+
+        nuclei: string | null;
+
+        detection: string | null;
+
       };
-      software: {
-        detected: Array<{ name: string; version: string; cves: string[] }>;
-      };
+
     }
 
-    const MainPage: React.FC = () => {
+        const MainPage: React.FC = () => {
       const [isScanning, setIsScanning] = useState(false);
       const [scanResults, setScanResults] = useState<ScanResult | null>(null);
       const [isDarkMode, setIsDarkMode] = useState(true);
+      const [socket, setSocket] = useState<any>(null);
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
+
+        const newSocket = io('http://localhost:3001');
+        setSocket(newSocket);
+
+        newSocket.on('scan:progress', (data) => {
+          toast.info(data.message);
+        });
+
+        newSocket.on('scan:step-complete', (data) => {
+          toast.success(`${data.step} complete!`);
+        });
+
+        newSocket.on('scan:complete', (data) => {
+          setScanResults(data.results);
+          setIsScanning(false);
+          toast.success('Scan completed successfully!');
+        });
+
+        newSocket.on('scan:failed', (data) => {
+          setIsScanning(false);
+          toast.error(data.error);
+        });
+
+        return () => {
+          newSocket.disconnect();
+        };
       }, []);
 
       const toggleDarkMode = () => {
@@ -56,85 +138,39 @@ import React, { useState, useEffect } from 'react';
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify({ url, socketId: socket.id }),
           });
 
           if (!scanResponse.ok) {
             throw new Error('Scan failed');
           }
 
-          const results = await scanResponse.json();
-          setScanResults(results);
-          toast.success('Scan completed successfully!');
-        } catch {
-          // Mock results for demo purposes when backend is not available
-          toast.info('Using demo results - connect backend for live scanning');
-          
-          // Simulate scan delay
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          const mockResults: ScanResult = {
-            url,
-            sslLabs: {
-              grade: 'A',
-              score: 85,
-              issues: ['Weak cipher suites detected']
-            },
-            nmap: {
-              openPorts: [
-                { port: 80, service: 'HTTP', state: 'open' },
-                { port: 443, service: 'HTTPS', state: 'open' }
-              ]
-            },
-            nuclei: {
-              vulnerabilities: [
-                {
-                  severity: 'Medium',
-                  title: 'Missing Security Headers',
-                  description: 'The application is missing important security headers like X-Frame-Options and Content-Security-Policy.'
-                }
-              ]
-            },
-            software: {
-              detected: [
-                {
-                  name: 'Apache',
-                  version: '2.4.41',
-                  cves: ['CVE-2021-44790', 'CVE-2021-44224']
-                }
-              ]
-            }
-          };
-          
-          setScanResults(mockResults);
-        } finally {
+        } catch (error) {
           setIsScanning(false);
+          toast.error(error.message);
         }
       };
 
-      const handleDownloadReport = () => {
+      const handleDownloadReport = async () => {
         if (!scanResults) return;
         
-        // Mock PDF download
-        toast.info('PDF report generation - connect backend for full functionality');
-        
-        // Create a simple text report for demo
-        const reportContent = `Security Scan Report
-    URL: ${scanResults.url}
-    SSL Issues: ${scanResults.sslLabs.issues.length}
-    Open Ports: ${scanResults.nmap.openPorts.length}
-    Vulnerabilities: ${scanResults.nuclei.vulnerabilities.length}
-    Software Detected: ${scanResults.software.detected.length}`;
-        
-        const blob = new Blob([reportContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `security-report-${Date.now()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+          const response = await fetch(`/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${scanResults.url}`);
+          if (!response.ok) {
+            throw new Error('Failed to download report');
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `security-report-${Date.now()}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          toast.error(error.message);
+        }
       };
 
       const scrollToSection = (sectionId: string) => {

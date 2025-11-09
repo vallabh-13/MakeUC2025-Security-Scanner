@@ -106,7 +106,7 @@ app.post('/api/scan', asyncHandler(async (req, res) => {
     }
   };
   
-  emit('scan:started', { url, hostname });
+  emit('scan:progress', { step: 'start', message: 'Scan initiated...', progress: 5 });
   
   // Run scans with progress updates
   runScanWithProgress(url, hostname, scanId, emit);
