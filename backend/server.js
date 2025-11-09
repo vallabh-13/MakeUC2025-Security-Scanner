@@ -291,8 +291,8 @@ process.on('SIGTERM', () => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Security Scanner API running on port ${PORT}`);
   logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);
   logger.info(`🔌 WebSocket server ready`);

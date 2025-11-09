@@ -1,22 +1,30 @@
-<<<<<<< HEAD
 # Dependencies
 node_modules/
 
-# Environment
+# Environment (keep .env.production for deployment)
 .env
 .env.local
+.env.development.local
+.env.test.local
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Cache
 cache/
 *.cache
+.vite/
 
 # Build
 build/
 dist/
+
+# TypeScript
+*.tsbuildinfo
 
 # OS
 .DS_Store
@@ -27,43 +35,9 @@ Thumbs.db
 .idea/
 *.swp
 
-=======
-# Node modules
-node_modules/
-
-# Build output
-dist/
-build/
-
-# Vite cache
-.vite/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS-specific
-.DS_Store
-Thumbs.db
-
-# IDEs
-.vscode/
-.idea/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# TypeScript
-*.tsbuildinfo
-
-# Optional: Tailwind JIT cache
+# Optional
 .tailwind/
-
-# Optional: coverage reports
 coverage/
->>>>>>> 7e278f7 (Initial commit for frontend branch)
+
+# Temporary files
+nul
