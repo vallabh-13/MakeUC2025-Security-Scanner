@@ -21,17 +21,17 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
+    origin: process.env.FRONTEND_URL === '*' ? '*' : (process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174']),
     methods: ['GET', 'POST'],
-    credentials: true
+    credentials: process.env.FRONTEND_URL === '*' ? false : true
   }
 });
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
-  credentials: true
+  origin: process.env.FRONTEND_URL === '*' ? '*' : (process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174']),
+  credentials: process.env.FRONTEND_URL === '*' ? false : true
 }));
 app.use(express.json());
 

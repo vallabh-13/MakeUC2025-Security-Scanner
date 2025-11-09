@@ -91,7 +91,7 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         document.documentElement.classList.add('dark');
 
-        const socketUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const socketUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
         const newSocket = io(socketUrl);
         setSocket(newSocket);
 
@@ -169,13 +169,14 @@ import React, { useState, useEffect } from 'react';
 
         try {
           // Check backend health first
-          const healthResponse = await fetch('/api/health');
+          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          const healthResponse = await fetch(`${backendUrl}/api/health`);
           if (!healthResponse.ok) {
             throw new Error('Backend service unavailable');
           }
 
           // Start the scan
-          const scanResponse = await fetch('/api/scan', {
+          const scanResponse = await fetch(`${backendUrl}/api/scan`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -204,8 +205,9 @@ import React, { useState, useEffect } from 'react';
         if (!scanResults) return;
 
         try {
+          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
           const targetUrl = scanResults.url || 'Unknown';
-          const response = await fetch(`/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${encodeURIComponent(targetUrl)}`);
+          const response = await fetch(`${backendUrl}/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${encodeURIComponent(targetUrl)}`);
           if (!response.ok) {
             throw new Error('Failed to download report');
           }
