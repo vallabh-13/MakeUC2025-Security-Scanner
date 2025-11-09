@@ -3,7 +3,7 @@ import React from 'react';
     import { Theme } from '@radix-ui/themes';
     import { ToastContainer } from 'react-toastify';
     import 'react-toastify/dist/ReactToastify.css';
-    import MainPage from './src/pages/MainPage';
+    import MainPage from './pages/MainPage';
 
     const App: React.FC = () => {
       return (
