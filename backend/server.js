@@ -8,7 +8,7 @@ require('dotenv').config();
 
 const { validateURL } = require('./services/urlValidator');
 const { detectSoftware } = require('./services/softwareDetector');
-const { scanSSL } = require('./services/sslLabsScanner');
+const { scanSSL } = require('./services/SSLLabsScanner');
 const { scanPorts } = require('./services/nmapScanner');
 const { scanWithNuclei } = require('./services/nucleiScanner');
 const { checkVulnerabilities, quickVulnerabilityCheck } = require('./services/cveDatabase');

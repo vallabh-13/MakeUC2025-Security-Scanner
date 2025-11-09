@@ -18,6 +18,17 @@ Before you begin, ensure you have the following installed on your system:
 
 -   **Node.js**: Version 18 or higher. You can download it from [nodejs.org](https://nodejs.org/).
 -   **npm**: Node Package Manager, which comes bundled with Node.js.
+-   **Nmap**: A free and open-source network scanner.
+    -   **Installation**: Follow the instructions on the official Nmap website: [nmap.org/download.html](https://nmap.org/download.html)
+-   **Nuclei**: A fast and customizable vulnerability scanner.
+    -   **Installation**: Follow the instructions on the official Nuclei GitHub page: [github.com/projectdiscovery/nuclei#installation](https://github.com/projectdiscovery/nuclei#installation)
+    -   **Update Templates**: After installation, ensure you update the Nuclei templates:
+        ```bash
+        nuclei -update-templates
+        ```
+-   **Trivy**: A comprehensive and versatile security scanner.
+    -   **Installation**: Follow the instructions on the official Trivy documentation: [aquasecurity.github.io/trivy/v0.50/getting-started/installation/](https://aquasecurity.github.io/trivy/v0.50/getting-started/installation/)
+-   **SSL Labs API**: This project utilizes the SSL Labs API for SSL/TLS analysis, which does not require local installation.
 
 ## Installation
 

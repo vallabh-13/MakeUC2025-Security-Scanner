@@ -24,7 +24,7 @@ async function scanWithNuclei(url) {
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
-    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o ${outputFile} -timeout 30 -rate-limit 50 -silent`;
+    const command = `nuclei -t ~/nuclei-templates -u "${url}" -jsonl -severity critical,high,medium -o ${outputFile} -timeout 30 -rate-limit 50 -silent`;
     
     console.log('Running Nuclei scan...');
     
