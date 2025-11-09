@@ -6,8 +6,8 @@ echo "Starting installation process..."
 echo "Installing root dependencies..."
 npm install
 if [ $? -ne 0 ]; then
-    echo "Error installing root dependencies. Exiting."
-    exit 1
+  echo "Error installing root dependencies. Exiting."
+  exit 1
 fi
 echo "Root dependencies installed."
 
@@ -16,8 +16,8 @@ echo "Installing backend dependencies..."
 cd backend
 npm install
 if [ $? -ne 0 ]; then
-    echo "Error installing backend dependencies. Exiting."
-    exit 1
+  echo "Error installing backend dependencies. Exiting."
+  exit 1
 fi
 cd ..
 echo "Backend dependencies installed."
@@ -27,11 +27,12 @@ echo "Installing frontend dependencies..."
 cd frontend
 npm install
 if [ $? -ne 0 ]; then
-    echo "Error installing frontend dependencies. Exiting."
-    exit 1
+  echo "Error installing frontend dependencies. Exiting."
+  exit 1
 fi
 cd ..
 echo "Frontend dependencies installed."
 
 echo "Installation complete. Please remember to configure your backend/.env file."
 echo "You can do this by navigating to the 'backend' directory and running 'cp .env.example .env', then editing the '.env' file."
+echo "Please do 'nuclei -update-templates' on terminal"
