@@ -4,8 +4,7 @@
 ### 🎥 Live Demo
 👉 *(Add link here if deployed)*
 
-### 📸 UI Screenshot
-*(Insert high-impact GIF or screenshot here)*
+
 
 ---
 
