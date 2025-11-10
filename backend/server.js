@@ -19,20 +19,22 @@ const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration - allow all origins
+const corsOptions = {
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: false,
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 const io = socketIo(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL === '*' ? '*' : (process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174']),
-    methods: ['GET', 'POST'],
-    credentials: process.env.FRONTEND_URL === '*' ? false : true
-  }
+  cors: corsOptions
 });
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL === '*' ? '*' : (process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174']),
-  credentials: process.env.FRONTEND_URL === '*' ? false : true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rate limiting
