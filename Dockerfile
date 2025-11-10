@@ -1,5 +1,5 @@
-# Use Node.js 18 with Debian base for better package support
-FROM node:18-bullseye-slim
+# Use Node.js 20 with Debian base for better package support
+FROM node:20-bullseye-slim
 
 # Install system dependencies and security tools
 RUN apt-get update && apt-get install -y \
