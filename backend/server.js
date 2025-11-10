@@ -10,7 +10,7 @@ const { validateURL } = require('./services/urlValidator');
 const { detectSoftware } = require('./services/softwareDetector');
 const { scanSSL } = require('./services/SSLLabsScanner');
 const { scanPorts } = require('./services/nmapScanner');
-const { scanWithNuclei } = require('./services/nucleiScanner');
+const { scanWithNuclei, initializeNucleiTemplates } = require('./services/nucleiScanner');
 const { checkVulnerabilities, quickVulnerabilityCheck } = require('./services/cveDatabase');
 const { generatePDF } = require('./services/pdfGenerator');
 const { aggregateResults } = require('./utils/aggregator');
@@ -292,11 +292,16 @@ process.on('SIGTERM', () => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', async () => {
   logger.info(`🚀 Security Scanner API running on port ${PORT}`);
   logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);
   logger.info(`🔌 WebSocket server ready`);
   logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
+
+  // Initialize Nuclei templates in the background
+  initializeNucleiTemplates().catch(err => {
+    logger.warn('Nuclei template initialization failed:', err.message);
+  });
 });
 
 module.exports = { app, server, io };

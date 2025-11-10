@@ -10,12 +10,12 @@ RUN apt-get update && apt-get install -y \
     chromium \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Nuclei
-RUN wget https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip -O nuclei.zip \
-    && unzip nuclei.zip \
+# Install Nuclei - skip template update during build, happens at runtime
+RUN wget -q --show-progress https://github.com/projectdiscovery/nuclei/releases/download/v3.3.7/nuclei_3.3.7_linux_amd64.zip -O nuclei.zip \
+    && unzip -q nuclei.zip \
     && mv nuclei /usr/local/bin/ \
-    && rm nuclei.zip \
-    && nuclei -update-templates -ut
+    && chmod +x /usr/local/bin/nuclei \
+    && rm nuclei.zip LICENSE.md README.md 2>/dev/null || true
 
 # Set Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

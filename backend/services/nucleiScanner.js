@@ -209,7 +209,32 @@ async function checkNucleiInstallation() {
   }
 }
 
-module.exports = { 
+/**
+ * Initialize Nuclei templates on first startup
+ * Downloads templates if not already present
+ * @returns {Object} - Initialization status
+ */
+async function initializeNucleiTemplates() {
+  try {
+    console.log('Checking Nuclei templates...');
+
+    // Try to update templates, but don't fail if it doesn't work
+    await execPromise('nuclei -update-templates -silent', {
+      timeout: 120000 // 2 minutes max
+    });
+
+    console.log('Nuclei templates initialized successfully');
+    return { success: true };
+  } catch (error) {
+    // Log warning but don't fail - templates will download on first scan
+    console.warn('Warning: Could not pre-download Nuclei templates:', error.message);
+    console.warn('Templates will be downloaded on first scan');
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = {
   scanWithNuclei,
-  checkNucleiInstallation 
+  checkNucleiInstallation,
+  initializeNucleiTemplates
 };
