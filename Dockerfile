@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Nuclei
-RUN wget https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_3.3.7_linux_amd64.zip -O nuclei.zip \
+RUN wget https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip -O nuclei.zip \
     && unzip nuclei.zip \
     && mv nuclei /usr/local/bin/ \
     && rm nuclei.zip \
