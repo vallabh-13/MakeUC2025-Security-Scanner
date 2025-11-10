@@ -1,14 +1,14 @@
 [build]
-  # Build command
-  command = "cd frontend && npm install && npm run build"
+  # Build command for root Vite app
+  command = "npm install && npm run build"
 
   # Directory that contains the deploy-ready HTML files and assets
-  publish = "frontend/build"
+  publish = "dist"
 
   # Environment variables for build
   [build.environment]
     NODE_VERSION = "20"
-    REACT_APP_API_URL = "https://makeuc2025-security-scanner-2.onrender.com"
+    VITE_BACKEND_URL = "https://makeuc2025-security-scanner-2.onrender.com"
 
 # Redirect rules for SPA (Single Page Application)
 [[redirects]]
