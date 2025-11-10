@@ -1,13 +1,14 @@
 [build]
   # Build command
-  command = "npm run build"
+  command = "cd frontend && npm install && npm run build"
 
   # Directory that contains the deploy-ready HTML files and assets
-  publish = "dist"
+  publish = "frontend/build"
 
   # Environment variables for build
   [build.environment]
-    NODE_VERSION = "18"
+    NODE_VERSION = "20"
+    REACT_APP_API_URL = "https://makeuc2025-security-scanner-2.onrender.com"
 
 # Redirect rules for SPA (Single Page Application)
 [[redirects]]
