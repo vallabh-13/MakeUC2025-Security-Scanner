@@ -47,10 +47,25 @@ app.use('/api/scan', limiter);
 // Store active scans
 const activeScans = new Map();
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Security Scanner API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      scan: 'POST /api/scan',
+      report: 'GET /api/report/:scanId/pdf'
+    },
+    documentation: 'https://github.com/vallabh-13/MakeUC2025-Security-Scanner'
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     activeScans: activeScans.size,
     version: '1.0.0'
