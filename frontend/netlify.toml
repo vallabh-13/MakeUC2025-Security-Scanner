@@ -8,7 +8,9 @@
   # Environment variables for build
   [build.environment]
     NODE_VERSION = "20"
-    VITE_BACKEND_URL = "https://makeuc2025-security-scanner-2.onrender.com"
+    # IMPORTANT: Update this URL after deploying backend to Fly.io
+    # It will be in format: https://your-app-name.fly.dev
+    VITE_BACKEND_URL = "https://security-scanner-backend.fly.dev"
 
 # Redirect rules for SPA (Single Page Application)
 [[redirects]]

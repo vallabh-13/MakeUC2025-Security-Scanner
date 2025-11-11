@@ -87,6 +87,8 @@ import React, { useState, useEffect } from 'react';
       const [scanResults, setScanResults] = useState<ScanResult | null>(null);
       const [isDarkMode, setIsDarkMode] = useState(true);
       const [socket, setSocket] = useState<any>(null);
+      const [scanProgress, setScanProgress] = useState(0);
+      const [scanMessage, setScanMessage] = useState('');
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
@@ -96,6 +98,14 @@ import React, { useState, useEffect } from 'react';
         setSocket(newSocket);
 
         newSocket.on('scan:progress', (data) => {
+          // Update progress state
+          if (data.progress !== undefined) {
+            setScanProgress(data.progress);
+          }
+          if (data.message) {
+            setScanMessage(data.message);
+          }
+
           // Only show toasts for key progress steps
           const importantSteps = ['start', 'detection', 'parallel-scans', 'aggregate'];
           if (importantSteps.includes(data.step)) {
@@ -110,6 +120,11 @@ import React, { useState, useEffect } from 'react';
         });
 
         newSocket.on('scan:step-complete', (data) => {
+          // Update progress if provided
+          if (data.progress !== undefined) {
+            setScanProgress(data.progress);
+          }
+
           // Only show completion toasts for main scan steps
           const mainSteps = ['detection', 'ssl', 'ports', 'nuclei', 'cve'];
           if (mainSteps.includes(data.step)) {
@@ -133,6 +148,8 @@ import React, { useState, useEffect } from 'react';
         newSocket.on('scan:complete', (data) => {
           setScanResults(data.results);
           setIsScanning(false);
+          setScanProgress(100);
+          setScanMessage('Scan completed!');
           toast.success('Scan completed successfully!', {
             style: {
               background: '#000000',
@@ -144,6 +161,8 @@ import React, { useState, useEffect } from 'react';
 
         newSocket.on('scan:failed', (data) => {
           setIsScanning(false);
+          setScanProgress(0);
+          setScanMessage('');
           toast.error(data.error, {
             style: {
               background: '#000000',
@@ -166,6 +185,8 @@ import React, { useState, useEffect } from 'react';
       const handleScanStart = async (url: string) => {
         setIsScanning(true);
         setScanResults(null);
+        setScanProgress(0);
+        setScanMessage('Initializing scan...');
 
         try {
           // Check backend health first
@@ -191,6 +212,8 @@ import React, { useState, useEffect } from 'react';
 
         } catch (error: any) {
           setIsScanning(false);
+          setScanProgress(0);
+          setScanMessage('');
           toast.error(error.message || 'An error occurred', {
             style: {
               background: '#000000',
@@ -362,13 +385,18 @@ import React, { useState, useEffect } from 'react';
                 </motion.p>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 className="mb-12"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <ScanForm onScanStart={handleScanStart} isScanning={isScanning} />
+                <ScanForm
+                  onScanStart={handleScanStart}
+                  isScanning={isScanning}
+                  scanProgress={scanProgress}
+                  scanMessage={scanMessage}
+                />
               </motion.div>
 
               {scanResults && (

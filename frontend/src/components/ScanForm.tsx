@@ -15,9 +15,11 @@ import React from 'react';
     interface ScanFormProps {
       onScanStart: (url: string) => void;
       isScanning: boolean;
+      scanProgress?: number;
+      scanMessage?: string;
     }
 
-    const ScanForm: React.FC<ScanFormProps> = ({ onScanStart, isScanning }) => {
+    const ScanForm: React.FC<ScanFormProps> = ({ onScanStart, isScanning, scanProgress = 0, scanMessage = '' }) => {
       const { register, handleSubmit } = useForm<ScanFormData>({
         resolver: zodResolver(scanSchema)
       });
@@ -63,7 +65,7 @@ import React from 'react';
             <button
               type="submit"
               disabled={isScanning}
-              className="w-full font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="w-full font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {isScanning ? (
                 <motion.div
@@ -72,14 +74,7 @@ import React from 'react';
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="w-full bg-zinc-300 rounded-full h-2">
-                    <motion.div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 3, ease: 'easeInOut' }}
-                    />
-                  </div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   <span>Scanning...</span>
                 </motion.div>
               ) : (
@@ -89,6 +84,33 @@ import React from 'react';
                 </>
               )}
             </button>
+
+            {/* Progress Bar - Shown below button when scanning */}
+            {isScanning && (
+              <motion.div
+                className="mt-4 space-y-2"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="w-full bg-zinc-700 rounded-full h-3 overflow-hidden">
+                  <motion.div
+                    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 h-full rounded-full flex items-center justify-end px-2"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${scanProgress}%` }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                  >
+                    {scanProgress > 10 && (
+                      <span className="text-xs font-semibold text-white">{scanProgress}%</span>
+                    )}
+                  </motion.div>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-400">{scanMessage}</span>
+                  <span className="text-indigo-400 font-semibold">{scanProgress}%</span>
+                </div>
+              </motion.div>
+            )}
           </form>
         </motion.div>
       );

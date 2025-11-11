@@ -45,16 +45,32 @@ async function generatePDF(scanResults, url) {
       // Helper function to add a section with padding
       const addSection = (title, topMargin = 20) => {
         if (doc.y > 700) doc.addPage();
-        doc.moveDown(topMargin / 15);
-        doc.fontSize(18).fillColor(colors.primary).text(title, { underline: true });
-        doc.moveDown(0.5);
+        doc.moveDown(topMargin / 12);
+        doc.fontSize(18).fillColor(colors.primary).text(title, 50, doc.y, {
+          align: 'center',
+          width: doc.page.width - 100,
+          underline: true,
+          continued: false
+        });
+        doc.moveDown(0.8);
       };
 
       // === HEADER ===
       doc.rect(0, 0, doc.page.width, 120).fill(colors.primary);
-      doc.fontSize(28).fillColor('white').text('🛡️ Security Scan Report', 50, 30, { align: 'center' });
-      doc.fontSize(12).fillColor('white').text(url, 50, 65, { align: 'center', width: doc.page.width - 100 });
 
+      // Title - removed emoji to fix encoding issues
+      doc.fontSize(28).fillColor('white').text('Security Scan Report', 50, 30, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
+
+      // URL
+      doc.fontSize(12).fillColor('white').text(url, 50, 68, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
+
+      // Scan date
       const scanDate = new Date(scannedAt).toLocaleString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -63,9 +79,13 @@ async function generatePDF(scanResults, url) {
         hour: '2-digit',
         minute: '2-digit'
       });
-      doc.fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 95, { align: 'center' });
+      doc.fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 92, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
 
-      doc.y = 150;
+      // Reset Y position after header
+      doc.y = 140;
 
       // === EXECUTIVE SUMMARY ===
       addSection('Executive Summary', 0);
@@ -78,19 +98,54 @@ async function generatePDF(scanResults, url) {
       const startX = (doc.page.width - (boxWidth * 3 + spacing * 2)) / 2;
 
       // Security Score Box
-      doc.rect(startX, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(scoreColor).text(score.toString(), startX, summaryY + 15, { width: boxWidth, align: 'center' });
-      doc.fontSize(10).fillColor(colors.gray).text('Security Score', startX, summaryY + 55, { width: boxWidth, align: 'center' });
+      doc.rect(startX, summaryY, boxWidth, boxHeight)
+        .fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(scoreColor)
+        .text(score.toString(), startX, summaryY + 15, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
+      doc.fontSize(10).fillColor(colors.gray)
+        .text('Security Score', startX, summaryY + 55, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
 
       // Grade Box
-      doc.rect(startX + boxWidth + spacing, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(scoreColor).text(grade, startX + boxWidth + spacing, summaryY + 15, { width: boxWidth, align: 'center' });
-      doc.fontSize(10).fillColor(colors.gray).text('Overall Grade', startX + boxWidth + spacing, summaryY + 55, { width: boxWidth, align: 'center' });
+      const gradeX = startX + boxWidth + spacing;
+      doc.rect(gradeX, summaryY, boxWidth, boxHeight)
+        .fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(scoreColor)
+        .text(grade, gradeX, summaryY + 15, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
+      doc.fontSize(10).fillColor(colors.gray)
+        .text('Overall Grade', gradeX, summaryY + 55, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
 
       // Total Issues Box
-      doc.rect(startX + (boxWidth + spacing) * 2, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(colors.primary).text(findings.length.toString(), startX + (boxWidth + spacing) * 2, summaryY + 15, { width: boxWidth, align: 'center' });
-      doc.fontSize(10).fillColor(colors.gray).text('Total Issues', startX + (boxWidth + spacing) * 2, summaryY + 55, { width: boxWidth, align: 'center' });
+      const issuesX = startX + (boxWidth + spacing) * 2;
+      doc.rect(issuesX, summaryY, boxWidth, boxHeight)
+        .fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(colors.primary)
+        .text(findings.length.toString(), issuesX, summaryY + 15, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
+      doc.fontSize(10).fillColor(colors.gray)
+        .text('Total Issues', issuesX, summaryY + 55, {
+          width: boxWidth,
+          align: 'center',
+          continued: false
+        });
 
       doc.y = summaryY + boxHeight + 30;
 
@@ -101,62 +156,95 @@ async function generatePDF(scanResults, url) {
       const severityY = doc.y;
       const severityBoxWidth = 90;
       const severityBoxHeight = 70;
-      const severityStartX = (doc.page.width - (severityBoxWidth * 5 + spacing * 4)) / 2;
+      const severitySpacing = 15;
+      const severityStartX = (doc.page.width - (severityBoxWidth * 5 + severitySpacing * 4)) / 2;
 
       severities.forEach((severity, index) => {
-        const x = severityStartX + (severityBoxWidth + spacing) * index;
+        const x = severityStartX + (severityBoxWidth + severitySpacing) * index;
         const count = severityCounts[severity] || 0;
         const color = colors[severity] || colors.gray;
 
-        doc.rect(x, severityY, severityBoxWidth, severityBoxHeight).fillAndStroke('#f9fafb', color);
-        doc.fontSize(24).fillColor(color).text(count.toString(), x, severityY + 10, { width: severityBoxWidth, align: 'center' });
-        doc.fontSize(9).fillColor(colors.gray).text(severity.toUpperCase(), x, severityY + 45, { width: severityBoxWidth, align: 'center' });
+        doc.rect(x, severityY, severityBoxWidth, severityBoxHeight)
+          .fillAndStroke('#f9fafb', color);
+
+        doc.fontSize(24).fillColor(color)
+          .text(count.toString(), x, severityY + 12, {
+            width: severityBoxWidth,
+            align: 'center',
+            continued: false
+          });
+
+        doc.fontSize(9).fillColor(colors.gray)
+          .text(severity.toUpperCase(), x, severityY + 48, {
+            width: severityBoxWidth,
+            align: 'center',
+            continued: false
+          });
       });
 
-      doc.y = severityY + severityBoxHeight + 20;
+      doc.y = severityY + severityBoxHeight + 25;
 
       // === DETECTED TECHNOLOGIES ===
       if (detectedTechnology && Object.keys(detectedTechnology).some(key => detectedTechnology[key] && (Array.isArray(detectedTechnology[key]) ? detectedTechnology[key].length > 0 : true))) {
         addSection('Detected Technologies');
 
-        doc.fontSize(10).fillColor(colors.darkGray);
+        doc.fontSize(10);
 
         if (detectedTechnology.webServer) {
-          doc.fillColor(colors.gray).text('Web Server:', { continued: true });
-          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.webServer.name} ${detectedTechnology.webServer.version}`);
+          doc.fillColor(colors.gray).text('Web Server: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(`${detectedTechnology.webServer.name} ${detectedTechnology.webServer.version}`, {
+            continued: false
+          });
         }
 
         if (detectedTechnology.cms) {
           const cmsName = typeof detectedTechnology.cms === 'string' ? detectedTechnology.cms : detectedTechnology.cms.name;
           const cmsVersion = typeof detectedTechnology.cms === 'object' ? detectedTechnology.cms.version || '' : '';
-          doc.fillColor(colors.gray).text('CMS:', { continued: true });
-          doc.fillColor(colors.darkGray).text(` ${cmsName} ${cmsVersion}`);
+          doc.fillColor(colors.gray).text('CMS: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(`${cmsName} ${cmsVersion}`, { continued: false });
         }
 
         if (detectedTechnology.backend && detectedTechnology.backend.length > 0) {
-          doc.fillColor(colors.gray).text('Backend:', { continued: true });
-          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.backend.map(b => `${b.name} ${b.version}`).join(', ')}`);
+          const backendStr = Array.isArray(detectedTechnology.backend)
+            ? detectedTechnology.backend.map(b => typeof b === 'string' ? b : `${b.name || ''} ${b.version || ''}`.trim()).join(', ')
+            : detectedTechnology.backend;
+          doc.fillColor(colors.gray).text('Backend: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(backendStr, { continued: false });
         }
 
         if (detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0) {
-          doc.fillColor(colors.gray).text('Frameworks:', { continued: true });
-          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.frameworks.map(f => f.name || f).join(', ')}`);
+          const frameworkStr = detectedTechnology.frameworks.map(f => f.name || f).join(', ');
+          doc.fillColor(colors.gray).text('Frameworks: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(frameworkStr, { continued: false });
         }
 
         if (detectedTechnology.libraries && detectedTechnology.libraries.length > 0) {
-          doc.fillColor(colors.gray).text('Libraries:', { continued: true });
-          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ')}`);
+          const libStr = detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ');
+          doc.fillColor(colors.gray).text('Libraries: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(libStr, { continued: false });
         }
 
-        doc.moveDown();
+        if (detectedTechnology.services && detectedTechnology.services.length > 0) {
+          const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
+          doc.fillColor(colors.gray).text('Services: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
+        }
+
+        doc.moveDown(1.5);
       }
 
       // === SECURITY FINDINGS ===
       addSection('Security Findings');
 
       if (findings.length === 0) {
-        doc.fontSize(12).fillColor(colors.success).text('✓ No security issues found!', { align: 'center' });
-        doc.fontSize(10).fillColor(colors.gray).text('Your website appears to be secure based on our scans.', { align: 'center' });
+        // Removed checkmark emoji to fix encoding
+        doc.fontSize(12).fillColor(colors.success).text('No security issues found!', {
+          align: 'center'
+        });
+        doc.fontSize(10).fillColor(colors.gray).text('Your website appears to be secure based on our scans.', {
+          align: 'center'
+        });
+        doc.moveDown();
       } else {
         findings.forEach((finding, index) => {
           // Check if we need a new page
@@ -164,35 +252,63 @@ async function generatePDF(scanResults, url) {
 
           const findingY = doc.y;
           const findingColor = colors[finding.severity] || colors.gray;
+          const findingHeight = 70;
 
           // Left border
-          doc.rect(50, findingY, 5, 60).fill(findingColor);
+          doc.rect(50, findingY, 5, findingHeight).fill(findingColor);
 
           // Finding box
-          doc.rect(55, findingY, doc.page.width - 110, 60).fillAndStroke('#ffffff', colors.lightGray);
+          doc.rect(55, findingY, doc.page.width - 110, findingHeight)
+            .fillAndStroke('#ffffff', colors.lightGray);
 
           // Finding number and title
-          doc.fontSize(12).fillColor(colors.darkGray).text(`${index + 1}. ${finding.title}`, 65, findingY + 10, { width: doc.page.width - 220 });
+          doc.fontSize(12).fillColor(colors.darkGray)
+            .text(`${index + 1}. ${finding.title}`, 65, findingY + 12, {
+              width: doc.page.width - 220,
+              continued: false
+            });
 
           // Severity badge
           const badgeWidth = 80;
           const badgeX = doc.page.width - 100 - badgeWidth;
-          doc.roundedRect(badgeX, findingY + 8, badgeWidth, 20, 3).fill(findingColor);
-          doc.fontSize(9).fillColor('white').text(finding.severity.toUpperCase(), badgeX, findingY + 12, { width: badgeWidth, align: 'center' });
+          doc.roundedRect(badgeX, findingY + 10, badgeWidth, 20, 3).fill(findingColor);
+          doc.fontSize(9).fillColor('white')
+            .text(finding.severity.toUpperCase(), badgeX, findingY + 14, {
+              width: badgeWidth,
+              align: 'center',
+              continued: false
+            });
 
           // Description
-          doc.fontSize(9).fillColor(colors.darkGray).text(finding.description, 65, findingY + 30, { width: doc.page.width - 130 });
+          doc.fontSize(9).fillColor(colors.darkGray)
+            .text(finding.description, 65, findingY + 35, {
+              width: doc.page.width - 130,
+              continued: false
+            });
 
-          doc.y = findingY + 65;
+          doc.y = findingY + findingHeight + 5;
 
           // Recommendation
           if (finding.recommendation) {
             if (doc.y > 700) doc.addPage();
 
-            doc.rect(55, doc.y, doc.page.width - 110, 40).fillAndStroke('#f0fdf4', colors.success);
-            doc.fontSize(9).fillColor(colors.success).text('💡 Recommendation:', 65, doc.y + 8);
-            doc.fontSize(8).fillColor('#166534').text(finding.recommendation, 65, doc.y + 22, { width: doc.page.width - 130 });
-            doc.y += 45;
+            const recY = doc.y;
+            const recHeight = 50;
+
+            doc.rect(55, recY, doc.page.width - 110, recHeight)
+              .fillAndStroke('#f0fdf4', colors.success);
+
+            // Removed emoji to fix encoding
+            doc.fontSize(9).fillColor(colors.success)
+              .text('Recommendation:', 65, recY + 10, { continued: false });
+
+            doc.fontSize(8).fillColor('#166534')
+              .text(finding.recommendation, 65, recY + 25, {
+                width: doc.page.width - 130,
+                continued: false
+              });
+
+            doc.y = recY + recHeight + 5;
           }
 
           // Metadata
@@ -204,11 +320,17 @@ async function generatePDF(scanResults, url) {
           if (finding.component) metaItems.push(`Component: ${finding.component} ${finding.componentVersion || ''}`);
 
           if (metaItems.length > 0) {
-            doc.fontSize(8).fillColor(colors.gray).text(metaItems.join(' | '), 65, doc.y + 5, { width: doc.page.width - 130 });
-            doc.y += 15;
+            if (doc.y > 720) doc.addPage();
+
+            doc.fontSize(8).fillColor(colors.gray)
+              .text(metaItems.join(' | '), 55, doc.y, {
+                width: doc.page.width - 110,
+                continued: false
+              });
+            doc.moveDown(0.5);
           }
 
-          doc.moveDown(0.5);
+          doc.moveDown(1);
         });
       }
 

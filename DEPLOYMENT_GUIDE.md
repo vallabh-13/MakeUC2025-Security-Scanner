@@ -1,258 +1,311 @@
-# 🚀 Deployment Guide for Security Scanner
+# Deployment Guide: Netlify + Fly.io
 
-This guide will help you deploy your security scanner to make it accessible for your hackathon demo.
+This guide will walk you through deploying your Security Scanner application using **Netlify** for the frontend and **Fly.io** for the backend.
 
-## 📋 Overview
+## Prerequisites
 
-- **Frontend**: Netlify (Free tier)
-- **Backend**: Render.com (Free tier)
-- **Total Cost**: $0/month
+Before you begin, make sure you have:
+- A GitHub account with your code pushed
+- Git installed locally
+- Node.js 20+ installed
 
-## 🎯 Prerequisites
+## Part 1: Deploy Backend to Fly.io
 
-Before deploying, make sure you have:
-- [ ] A GitHub account (to push your code)
-- [ ] A Netlify account (sign up at https://netlify.com)
-- [ ] A Render account (sign up at https://render.com)
-- [ ] Your code committed to a Git repository
+### Step 1: Install Fly.io CLI
 
----
+**Windows:**
+```powershell
+powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+```
 
-## Part 1: Deploy Backend to Render.com
+**Mac/Linux:**
+```bash
+curl -L https://fly.io/install.sh | sh
+```
 
-### Step 1: Push Your Code to GitHub
+### Step 2: Sign Up / Login to Fly.io
 
 ```bash
-# If you haven't already, initialize git and push to GitHub
-git add .
-git commit -m "Prepare for deployment"
-git push origin main
+fly auth signup
+# OR if you already have an account:
+fly auth login
 ```
 
-### Step 2: Create Render Service
+### Step 3: Navigate to Backend Directory
 
-1. Go to https://render.com and sign in
-2. Click **"New +"** button in the top right
-3. Select **"Web Service"**
-4. Connect your GitHub repository
-5. Configure the service:
-   - **Name**: `security-scanner-backend` (or your preferred name)
-   - **Region**: Choose closest to your location
-   - **Branch**: `main`
-   - **Runtime**: Docker
-   - **Plan**: **Free**
-
-### Step 3: Configure Environment Variables
-
-In the Render dashboard, add these environment variables:
-
-```
-NODE_ENV=production
-PORT=3000
-FRONTEND_URL=*
-LOG_LEVEL=info
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-NVD_API_KEY=
+```bash
+cd backend
 ```
 
-> **Note**: We'll update `FRONTEND_URL` after deploying the frontend
+### Step 4: Launch Your App on Fly.io
 
-### Step 4: Deploy Backend
+```bash
+fly launch
+```
 
-1. Click **"Create Web Service"**
-2. Wait 5-10 minutes for the build to complete
-3. Once deployed, copy your backend URL (e.g., `https://security-scanner-backend-abc123.onrender.com`)
+When prompted:
+- **App name**: Press Enter to accept `security-scanner-backend` (or choose your own)
+- **Region**: Choose the closest region to you (e.g., `iad` for US East)
+- **Would you like to set up a PostgreSQL database?**: **No**
+- **Would you like to set up a Redis database?**: **No**
+- **Would you like to deploy now?**: **No** (we'll set up secrets first)
 
-### Step 5: Verify Backend is Running
+### Step 5: Set Environment Variables (Secrets)
 
-Visit: `https://your-backend-url.onrender.com/api/health`
+```bash
+# Set production environment
+fly secrets set NODE_ENV=production
+
+# Set rate limiting (optional - adjust as needed)
+fly secrets set RATE_LIMIT_WINDOW_MS=900000
+fly secrets set RATE_LIMIT_MAX_REQUESTS=100
+
+# Set log level
+fly secrets set LOG_LEVEL=info
+
+# If you have an NVD API key for CVE lookups (optional but recommended)
+fly secrets set NVD_API_KEY=your-api-key-here
+```
+
+> **Get NVD API Key (Optional but Recommended):**
+> Visit https://nvd.nist.gov/developers/request-an-api-key and request a free API key.
+
+### Step 6: Deploy to Fly.io
+
+```bash
+fly deploy
+```
+
+This will:
+- Build your Docker container
+- Push it to Fly.io
+- Deploy your app
+
+Wait for the deployment to complete (3-5 minutes).
+
+### Step 7: Verify Backend Deployment
+
+```bash
+fly status
+fly open
+```
+
+Your backend URL will be: `https://security-scanner-backend.fly.dev` (or your custom app name)
+
+Test the health endpoint:
+```bash
+curl https://security-scanner-backend.fly.dev/api/health
+```
 
 You should see:
 ```json
 {
   "status": "ok",
-  "timestamp": "2025-11-09T...",
-  "activeScans": 0,
+  "timestamp": "2024-11-11T...",
   "version": "1.0.0"
 }
 ```
+
+### Step 8: Monitor Logs (Optional)
+
+```bash
+fly logs
+```
+
+### Step 9: Copy Your Backend URL
+
+**IMPORTANT**: Copy your full backend URL (e.g., `https://security-scanner-backend.fly.dev`)
+You'll need this in the next section!
 
 ---
 
 ## Part 2: Deploy Frontend to Netlify
 
-### Step 1: Update Frontend Environment Variable
+### Step 1: Update Backend URL in Netlify Config
 
-1. Edit `.env.production` in the project root
-2. Replace the backend URL:
+Open `frontend/netlify.toml` and update line 13 with your **actual Fly.io backend URL** from Part 1, Step 9:
 
-```env
-VITE_BACKEND_URL=https://your-actual-backend-url.onrender.com
+```toml
+VITE_BACKEND_URL = "https://YOUR-ACTUAL-APP-NAME.fly.dev"
 ```
 
-Replace `your-actual-backend-url` with the URL from Render (Step 4 above)
+For example:
+```toml
+VITE_BACKEND_URL = "https://security-scanner-backend.fly.dev"
+```
 
-3. Commit and push:
+### Step 2: Commit and Push Changes
+
 ```bash
-git add .env.production
-git commit -m "Update backend URL for production"
+git add .
+git commit -m "Update backend URL for Fly.io deployment"
 git push origin main
 ```
 
-### Step 2: Deploy to Netlify
+### Step 3: Sign Up / Login to Netlify
 
-#### Option A: Using Netlify CLI (Recommended)
+1. Go to https://app.netlify.com/signup
+2. Sign up with GitHub (recommended) or email
+3. Authorize Netlify to access your repositories
 
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
+### Step 4: Create New Site from Git
 
-# Login to Netlify
-netlify login
-
-# Build and deploy
-npm run build
-netlify deploy --prod --dir=dist
-```
-
-#### Option B: Using Netlify Dashboard
-
-1. Go to https://app.netlify.com
-2. Click **"Add new site"** → **"Import an existing project"**
-3. Connect your GitHub repository
+1. Click **"Add new site"** → **"Import an existing project"**
+2. Choose **"GitHub"**
+3. Search for and select your repository: `MakeUC2025-Security-Scanner`
 4. Configure build settings:
-   - **Build command**: `npm run build`
-   - **Publish directory**: `dist`
-   - **Environment variables**: Add `VITE_BACKEND_URL` with your Render backend URL
+   - **Base directory**: `frontend`
+   - **Build command**: `npm install && npm run build`
+   - **Publish directory**: `frontend/dist`
+   - **Branch to deploy**: `main`
+
 5. Click **"Deploy site"**
 
-### Step 3: Get Your Frontend URL
+### Step 5: Wait for Deployment
 
-After deployment, Netlify will give you a URL like:
+Netlify will:
+- Clone your repository
+- Run the build command
+- Deploy your site (2-3 minutes)
+
+### Step 6: Your Site is Live! 🎉
+
+Once deployed, Netlify will give you a URL like:
 ```
-https://your-site-name.netlify.app
+https://random-name-12345.netlify.app
 ```
 
-### Step 4: Update Backend CORS Settings
+### Step 7: (Optional) Custom Domain
 
-1. Go back to Render dashboard
-2. Navigate to your backend service
-3. Update the `FRONTEND_URL` environment variable:
-   ```
-   FRONTEND_URL=https://your-site-name.netlify.app
-   ```
-4. Click **"Save"** - this will trigger a redeploy
+If you want a custom domain:
+1. Go to **Site settings** → **Domain management**
+2. Click **"Add custom domain"**
+3. Follow Netlify's instructions to configure DNS
 
 ---
 
-## Part 3: Final Testing
+## Part 3: Testing Your Deployment
 
-### Test Your Deployed Application
+### Test Frontend
 
-1. Visit your Netlify URL: `https://your-site-name.netlify.app`
-2. Try scanning a website (e.g., `https://example.com`)
-3. Verify that:
-   - [ ] The scan starts successfully
-   - [ ] Progress updates appear in real-time
-   - [ ] Results are displayed correctly
-   - [ ] PDF download works
+1. Open your Netlify URL in a browser
+2. You should see the Security Scanner interface
 
----
+### Test Full Integration
 
-## ⚠️ Important Notes
-
-### Render Free Tier Limitations
-
-- **Spins down after 15 minutes of inactivity**
-- First request after spin-down will take 30-60 seconds
-- This is normal for free tier - perfect for hackathon demos!
-
-### Making It Fast for Demos
-
-Before your demo/presentation:
-1. Visit your site 2-3 minutes beforehand to wake up the backend
-2. Do a test scan to ensure everything is working
-3. Keep the tab open during your presentation
-
-### Custom Domain (Optional)
-
-**Netlify:**
-1. Go to Site Settings → Domain Management
-2. Add your custom domain
-3. Follow DNS configuration instructions
-
-**Render:**
-1. Go to Settings → Custom Domain
-2. Add your domain
-3. Update DNS records as instructed
+1. Enter a test URL (e.g., `https://example.com`)
+2. Click **"Start Scan"**
+3. Watch the real-time progress
+4. Verify the scan completes and shows results
+5. Try downloading the PDF report
 
 ---
 
-## 🐛 Troubleshooting
+## Important URLs to Save
 
-### Frontend can't connect to backend
-
-- Check `VITE_BACKEND_URL` in `.env.production` is correct
-- Verify backend is deployed and running (check health endpoint)
-- Check browser console for CORS errors
-
-### Backend errors on Render
-
-- Check Render logs: Dashboard → Your Service → Logs
-- Verify all environment variables are set correctly
-- Ensure Docker build completed successfully
-
-### "Service Unavailable" errors
-
-- Backend is probably spinning down (free tier)
-- Wait 30-60 seconds and try again
-- The service will wake up automatically
-
-### Scans timing out
-
-- Render free tier has limited CPU/memory
-- This is expected for complex scans
-- Consider simplifying scan operations for demo
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Frontend (Netlify)** | `https://your-site.netlify.app` | User interface |
+| **Backend (Fly.io)** | `https://your-app.fly.dev` | API server |
+| **Health Check** | `https://your-app.fly.dev/api/health` | Backend status |
 
 ---
 
-## 📊 Monitoring
+## Monitoring & Maintenance
 
-### Check Backend Health
+### View Fly.io Logs
 ```bash
-curl https://your-backend-url.onrender.com/api/health
+fly logs
 ```
 
-### View Backend Logs
-1. Go to Render dashboard
-2. Click on your service
-3. Navigate to "Logs" tab
-
-### Check Frontend Build
-1. Go to Netlify dashboard
+### View Netlify Logs
+1. Go to your Netlify dashboard
 2. Click on your site
-3. Navigate to "Deploys" tab
+3. Go to **"Deploys"** tab
+4. Click on any deploy to see logs
+
+### Scale Fly.io if Needed
+```bash
+# Check current status
+fly status
+
+# Scale memory (if you hit limits)
+fly scale memory 512
+
+# Scale to multiple regions (for better performance)
+fly scale count 2
+```
 
 ---
 
-## 🎉 You're Done!
+## Troubleshooting
 
-Your security scanner is now live and accessible to hackathon judges and attendees!
+### Backend Issues
 
-**Share your links:**
-- 🌐 Frontend: `https://your-site-name.netlify.app`
-- 🔧 Backend API: `https://your-backend-url.onrender.com`
-- 📊 Health Check: `https://your-backend-url.onrender.com/api/health`
+**Problem: Backend not responding**
+```bash
+fly logs
+fly status
+fly doctor
+```
+
+**Problem: Memory errors**
+```bash
+# Increase memory allocation
+fly scale memory 512
+```
+
+**Problem: Nuclei templates not loading**
+```bash
+fly ssh console
+nuclei -update-templates
+exit
+```
+
+### Frontend Issues
+
+**Problem: Can't connect to backend**
+- Check that `VITE_BACKEND_URL` in `netlify.toml` matches your Fly.io URL
+- Redeploy frontend after fixing:
+  ```bash
+  git add frontend/netlify.toml
+  git commit -m "Fix backend URL"
+  git push
+  ```
+
+**Problem: Build fails**
+- Check Netlify build logs
+- Ensure `frontend/package.json` has correct dependencies
+- Try running `npm run build` locally first
 
 ---
 
-## 💡 Tips for Hackathon Demo
+## Cost Breakdown (Free Tiers)
 
-1. **Test before presenting**: Do a full scan test 5 minutes before your demo
-2. **Have a backup**: Record a video of the scan in case of connectivity issues
-3. **Prepare examples**: Have 2-3 good URLs ready to scan (your site, example.com, etc.)
-4. **Explain limitations**: Mention it's a hackathon project on free tier if there are delays
-5. **Show the features**: Highlight real-time updates, PDF reports, and security scoring
+| Service | Free Tier | Limits |
+|---------|-----------|--------|
+| **Netlify** | Free forever | 100GB bandwidth/month, Unlimited sites |
+| **Fly.io** | Free tier | 3 shared-cpu VMs, 256MB RAM each, 3GB storage |
 
-Good luck with your hackathon! 🚀
+**Estimated monthly cost: $0** (within free tier limits)
+
+---
+
+## Next Steps
+
+- Share your live URL with others to test
+- Monitor usage in both dashboards
+- Set up custom domain (optional)
+- Enable analytics (both platforms offer free analytics)
+
+---
+
+## Support
+
+- **Fly.io Docs**: https://fly.io/docs/
+- **Netlify Docs**: https://docs.netlify.com/
+- **Project Issues**: https://github.com/vallabh-13/MakeUC2025-Security-Scanner/issues
+
+---
+
+Happy Scanning! 🔒✨

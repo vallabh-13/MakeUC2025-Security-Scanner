@@ -1,151 +1,215 @@
-# 🛡️ Secure Scanner
-> **Instant, comprehensive web security analysis** 
+# 🛡️ Security Scanner
+> **Instant, comprehensive web security analysis**
 
-### 🎥 Live Demo
-👉 *(Add link here if deployed)*
+## 🔥 Why We Built This
+* **The Problem:** Web security analysis is **manual**, **slow**, and **requires multiple tools**, leaving many websites vulnerable to attacks.
+* **The Solution:** **Security Scanner** automates all vulnerability scans and reporting with no command-line tools needed
 
 ---
 
-## 🔥 Why We Built This
-* **The Problem:** Web security analysis is **manual**, **slow**, and **requires multiple tools**, leaving many websites vulnerable to  attacks.
-* **The Solution:** **SecurityScanner** automates all vulnerability scans and reporting with no command-line tools needed
+## 📁 Project Structure
+
+```
+MakeUC2025-Security-Scanner/
+├── frontend/           # React + TypeScript frontend
+│   ├── src/            # Source code
+│   ├── public/         # Static assets
+│   ├── package.json    # Frontend dependencies
+│   └── README.md       # Frontend setup guide
+├── backend/            # Node.js + Express backend
+│   ├── services/       # Scanner services
+│   ├── middleware/     # Express middleware
+│   ├── package.json    # Backend dependencies
+│   └── README.md       # Backend setup guide
+├── README.md           # This file
+└── DEPLOYMENT_GUIDE.md # Deployment instructions
+```
 
 ---
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
-  - [Manual Installation](#manual-installation)
-  - [Using the Installation Script](#using-the-installation-script)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [Usage](#usage)
+- [Local Development Setup](#local-development-setup)
+- [Security Tools](#security-tools-optional)
+- [Project Features](#project-features)
+- [Deployment](#deployment)
+
+## Quick Start
+
+**For local development, follow these steps:**
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/vallabh-13/MakeUC2025-Security-Scanner.git
+   cd MakeUC2025-Security-Scanner
+   ```
+
+2. **Setup Backend:**
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env  # Create and configure .env
+   npm start             # Starts on http://localhost:3000
+   ```
+
+3. **Setup Frontend (in a new terminal):**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev           # Starts on http://localhost:5173
+   ```
+
+4. **Open your browser:**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:3000
+   - Health Check: http://localhost:3000/api/health
+
+**That's it!** The scanner will work with basic functionality. For full features, install the security tools below.
+
+---
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system:
+### Required
 
--   **Node.js**: Version 18 or higher. You can download it from [nodejs.org](https://nodejs.org/).
--   **npm**: Node Package Manager, which comes bundled with Node.js.
--   **Nmap**: A free and open-source network scanner.
-    -   **Installation**: Follow the instructions on the official Nmap website: [nmap.org/download.html](https://nmap.org/download.html)
--   **Nuclei**: A fast and customizable vulnerability scanner.
-    -   **Installation**: Follow the instructions on the official Nuclei GitHub page: [github.com/projectdiscovery/nuclei#installation](https://github.com/projectdiscovery/nuclei#installation)
-    -   **Update Templates**: After installation, ensure you update the Nuclei templates:
-        ```bash
-        nuclei -update-templates
-        ```
--   **Trivy**: A comprehensive and versatile security scanner.
-    -   **Installation**: Follow the instructions on the official Trivy documentation: [aquasecurity.github.io/trivy/v0.50/getting-started/installation/](https://aquasecurity.github.io/trivy/v0.50/getting-started/installation/)
--   **SSL Labs API**: This project utilizes the SSL Labs API for SSL/TLS analysis, which does not require local installation.
+-   **Node.js**: Version 20 or higher. Download from [nodejs.org](https://nodejs.org/)
+-   **npm**: Node Package Manager (comes with Node.js)
 
-## Installation
+### Optional Security Tools (for full functionality)
 
-You can install the project either manually or by using a provided installation script.
+-   **Nmap**: Network scanner for port scanning
+    -   **Installation**: [nmap.org/download.html](https://nmap.org/download.html)
+    -   Without it: Basic connectivity checks only
 
-### Manual Installation
+-   **Nuclei**: Fast vulnerability scanner
+    -   **Installation**: [github.com/projectdiscovery/nuclei#installation](https://github.com/projectdiscovery/nuclei#installation)
+    -   **Update Templates**: `nuclei -update-templates`
+    -   Without it: No vulnerability template scanning
 
-Follow these steps to set up the project manually:
+-   **SSL Labs API**: Used automatically for SSL/TLS analysis (no installation required)
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/security-scanner.git
-    cd security-scanner
-    ```
-    *(Replace `https://github.com/your-username/security-scanner.git` with the actual URL of your repository)*
+---
 
-2.  **Install root dependencies:**
-    ```bash
-    npm install
-    ```
+## Local Development Setup
 
-3.  **Install backend dependencies:**
-    ```bash
-    cd backend
-    npm install
-    cd ..
-    ```
+### Backend Configuration
 
-4.  **Install frontend dependencies:**
-    ```bash
-    cd frontend
-    npm install
-    cd ..
-    ```
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
 
-### Using the Installation Script
+2. **Create `.env` file:**
+   ```bash
+   # Copy the example or create manually
+   cp .env.example .env
+   ```
 
-For a quicker setup, you can use the `install.sh` script. This script will automate the dependency installation process.
+3. **Edit `backend/.env`:**
+   ```env
+   # Server Configuration
+   NODE_ENV=development
+   PORT=3000
 
-1.  **Make the script executable:**
-    ```bash
-    chmod +x install.sh
-    ```
+   # Frontend URL (for CORS)
+   FRONTEND_URL=http://localhost:5173
 
-2.  **Run the script:**
-    ```bash
-    ./install.sh
-    ```
+   # Rate Limiting
+   RATE_LIMIT_WINDOW_MS=900000
+   RATE_LIMIT_MAX_REQUESTS=100
 
-## Configuration
+   # Logging
+   LOG_LEVEL=info
 
-The backend requires a `.env` file for configuration.
+   # Optional: NVD API Key for enhanced CVE lookups
+   # Get one at https://nvd.nist.gov/developers/request-an-api-key
+   NVD_API_KEY=your_api_key_here
+   ```
 
-1.  **Navigate to the backend directory:**
-    ```bash
-    cd backend
-    ```
+### Frontend Configuration
 
-2.  **Create the `.env` file:**
-    Copy the example environment file:
-    ```bash
-    cp .env.example .env
-    ```
+The frontend `.env` is already configured for local development:
+- `VITE_BACKEND_URL=http://localhost:3000`
 
-3.  **Edit the `.env` file:**
-    Open `backend/.env` in your preferred text editor and fill in the necessary environment variables. At a minimum, you might want to configure `PORT`, `FRONTEND_URL`, and `NVD_API_KEY` if you plan to use the NVD API.
+No changes needed unless you change the backend port.
 
-    ```
-    # Server Configuration
-    PORT=3001
-    NODE_ENV=development
+---
 
-    # Frontend URL
-    FRONTEND_URL=http://localhost:3000
+## Project Features
 
-    # Logging
-    LOG_LEVEL=info
+### Security Scans Performed
 
-    # Rate Limiting
-    RATE_LIMIT_WINDOW_MS=900000
-    RATE_LIMIT_MAX_REQUESTS=100
+1. **Software Detection** - Identifies web servers, frameworks, and libraries
+2. **SSL/TLS Analysis** - Comprehensive SSL certificate and configuration check
+3. **Port Scanning** - Discovers open ports and running services
+4. **Vulnerability Scanning** - Tests for known vulnerabilities using Nuclei templates
+5. **CVE Database Lookup** - Checks for known vulnerabilities in detected software
+6. **PDF Report Generation** - Generates downloadable security reports
 
-    # API Keys (leave blank if not used)
-    NVD_API_KEY=
-    ```
-    *(Ensure `FRONTEND_URL` matches the URL where your frontend will be running, typically `http://localhost:3000` during development.)*
+### Technology Stack
 
-## Running the Application
+**Frontend:**
+- React 19 + TypeScript
+- Vite (build tool)
+- Tailwind CSS
+- Socket.io Client (real-time updates)
+- Framer Motion (animations)
 
-Once installed and configured, you can run the application:
+**Backend:**
+- Node.js + Express
+- Socket.io (WebSocket server)
+- Security tools integration (Nmap, Nuclei)
+- Winston (logging)
+- Helmet + CORS (security)
 
-1.  **Start the Backend Server:**
-    Open a new terminal, navigate to the project root, and then to the `backend` directory:
-    ```bash
-    cd backend
-    npm start
-    ```
-    The backend server should start on the port specified in your `.env` file (default: `3001`).
+---
 
-2.  **Start the Frontend Development Server:**
-    Open another new terminal, navigate to the project root, and then to the `frontend` directory:
-    ```bash
-    cd frontend
-    npm start
-    ```
-    The frontend application should open in your browser (default: `http://localhost:3000`).
+## Deployment
 
-## Usage
+This project is configured for deployment on:
+- **Frontend**: Netlify (see `frontend/netlify.toml`)
+- **Backend**: Render (see `render.yaml` and `Dockerfile`)
 
-(Add specific instructions on how to use your security scanner application here.)
+For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
+
+---
+
+## Troubleshooting
+
+### Port Already in Use
+If port 3000 or 5173 is already in use:
+- Backend: Change `PORT` in `backend/.env`
+- Frontend: Vite will automatically use the next available port
+
+### Backend Not Connecting
+- Ensure backend is running on http://localhost:3000
+- Check `frontend/.env` has correct `VITE_BACKEND_URL`
+- Check browser console for errors
+
+### Security Tools Not Working
+- The scanner works without Nmap/Nuclei but with limited functionality
+- Install tools for full features (see Prerequisites section)
+- Verify tools are in PATH: `nmap --version` and `nuclei -version`
+
+---
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Links
+
+- **Repository**: https://github.com/vallabh-13/MakeUC2025-Security-Scanner
+- **Frontend README**: [frontend/README.md](./frontend/README.md)
+- **Backend README**: [backend/README.md](./backend/README.md)
+- **Deployment Guide**: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)

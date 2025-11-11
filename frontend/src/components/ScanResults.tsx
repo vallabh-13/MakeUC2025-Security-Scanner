@@ -149,30 +149,95 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results, onDownloadReport }) 
             <h3 className="text-xl font-semibold text-white">Detected Technology</h3>
           </div>
           <div className="space-y-4">
+            {/* Web Server */}
             {results.detectedTechnology.webServer && (
               <div className="bg-zinc-600 rounded-lg p-4">
-                <h4 className="font-semibold text-white">Web Server</h4>
+                <h4 className="font-semibold text-white mb-2">Web Server</h4>
                 <p className="text-slate-400">{results.detectedTechnology.webServer.name} {results.detectedTechnology.webServer.version}</p>
               </div>
             )}
-            {results.detectedTechnology.libraries.length > 0 && (
+
+            {/* Backend Technologies */}
+            {results.detectedTechnology.backend && results.detectedTechnology.backend.length > 0 && (
               <div className="bg-zinc-600 rounded-lg p-4">
-                <h4 className="font-semibold text-white">Libraries</h4>
-                <ul className="list-disc list-inside">
+                <h4 className="font-semibold text-white mb-2">Backend Technologies</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {results.detectedTechnology.backend.map((tech, index) => (
+                    <li key={index} className="text-slate-400">{tech}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* CMS */}
+            {results.detectedTechnology.cms && (
+              <div className="bg-zinc-600 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-2">Content Management System</h4>
+                <p className="text-slate-400">{results.detectedTechnology.cms}</p>
+              </div>
+            )}
+
+            {/* Frameworks */}
+            {results.detectedTechnology.frameworks && results.detectedTechnology.frameworks.length > 0 && (
+              <div className="bg-zinc-600 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-2">Frameworks</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {results.detectedTechnology.frameworks.map((framework, index) => (
+                    <li key={index} className="text-slate-400">{framework}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Libraries */}
+            {results.detectedTechnology.libraries && results.detectedTechnology.libraries.length > 0 && (
+              <div className="bg-zinc-600 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-2">Libraries</h4>
+                <ul className="list-disc list-inside space-y-1">
                   {results.detectedTechnology.libraries.map((lib, index) => (
                     <li key={index} className="text-slate-400">{lib.name} {lib.version}</li>
                   ))}
                 </ul>
               </div>
             )}
-             {results.detectedTechnology.services.length > 0 && (
+
+            {/* Technologies */}
+            {results.detectedTechnology.technologies && results.detectedTechnology.technologies.length > 0 && (
               <div className="bg-zinc-600 rounded-lg p-4">
-                <h4 className="font-semibold text-white">Services</h4>
-                <ul className="list-disc list-inside">
-                  {results.detectedTechnology.services.map((service, index) => (
-                    <li key={index} className="text-slate-400">{service.port}/{service.protocol} - {service.service}</li>
+                <h4 className="font-semibold text-white mb-2">Additional Technologies</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {results.detectedTechnology.technologies.map((tech, index) => (
+                    <li key={index} className="text-slate-400">{tech}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {/* Services (from port scan) */}
+            {results.detectedTechnology.services && results.detectedTechnology.services.length > 0 && (
+              <div className="bg-zinc-600 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-2">Network Services</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {results.detectedTechnology.services.map((service, index) => (
+                    <li key={index} className="text-slate-400">
+                      Port {service.port}/{service.protocol} - {service.service}
+                      {service.product && ` (${service.product}${service.version ? ' ' + service.version : ''})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* No technology detected message */}
+            {!results.detectedTechnology.webServer &&
+             (!results.detectedTechnology.backend || results.detectedTechnology.backend.length === 0) &&
+             !results.detectedTechnology.cms &&
+             (!results.detectedTechnology.frameworks || results.detectedTechnology.frameworks.length === 0) &&
+             (!results.detectedTechnology.libraries || results.detectedTechnology.libraries.length === 0) &&
+             (!results.detectedTechnology.technologies || results.detectedTechnology.technologies.length === 0) &&
+             (!results.detectedTechnology.services || results.detectedTechnology.services.length === 0) && (
+              <div className="bg-zinc-600 rounded-lg p-4 text-center">
+                <p className="text-slate-400">No technologies were detected during the scan.</p>
               </div>
             )}
           </div>
