@@ -31,17 +31,25 @@ async function scanWithNuclei(url) {
     console.log('Running Nuclei scan...');
     
     // Execute Nuclei
-    await execPromise(command, { 
+    await execPromise(command, {
       timeout: 300000, // 5 minutes max
-      maxBuffer: 20 * 1024 * 1024 // 20MB buffer
+      maxBuffer: 100 * 1024 * 1024 // 100MB buffer (increased from 20MB to handle large scans)
     });
     
     // Read results from output file
-    const output = await fs.readFile(outputFile, 'utf-8');
-    
+    let output = '';
+    try {
+      output = await fs.readFile(outputFile, 'utf-8');
+    } catch (readError) {
+      console.error('Failed to read Nuclei output file:', readError.message);
+      // Clean up temp file
+      await fs.unlink(outputFile).catch(() => {});
+      return { findings: [], error: 'Failed to read scan results' };
+    }
+
     // Clean up temp file
     await fs.unlink(outputFile).catch(() => {});
-    
+
     // Parse JSON Lines output
     const lines = output.trim().split('\n').filter(Boolean);
     

@@ -29,7 +29,11 @@ const corsOptions = {
 };
 
 const io = socketIo(server, {
-  cors: corsOptions
+  cors: corsOptions,
+  pingTimeout: 60000, // 60 seconds - how long to wait for pong response
+  pingInterval: 25000, // 25 seconds - how often to ping
+  connectTimeout: 45000, // 45 seconds - connection timeout
+  transports: ['websocket', 'polling']
 });
 
 // Middleware
@@ -77,10 +81,18 @@ app.get('/api/health', (req, res) => {
 // WebSocket connection handler
 io.on('connection', (socket) => {
   logger.info(`Client connected: ${socket.id}`);
-  
-  socket.on('disconnect', () => {
-    logger.info(`Client disconnected: ${socket.id}`);
+
+  socket.on('disconnect', (reason) => {
+    logger.info(`Client disconnected: ${socket.id}, reason: ${reason}`);
+    const scanId = activeScans.get(socket.id);
+    if (scanId) {
+      logger.warn(`Active scan ${scanId} lost connection - scan will continue but results may not be delivered`);
+    }
     activeScans.delete(socket.id);
+  });
+
+  socket.on('error', (error) => {
+    logger.error(`Socket error for ${socket.id}:`, error);
   });
 });
 
@@ -122,8 +134,10 @@ app.post('/api/scan', asyncHandler(async (req, res) => {
   
   // Emit progress updates
   const emit = (event, data) => {
-    if (clientSocket) {
+    if (clientSocket && clientSocket.connected) {
       clientSocket.emit(event, { scanId, ...data });
+    } else if (clientSocket && !clientSocket.connected) {
+      logger.warn(`[${scanId}] Cannot emit ${event} - client socket disconnected`);
     }
   };
   
@@ -222,9 +236,9 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
           const nucleiResults = await scanWithNuclei(url);
           results.nuclei = nucleiResults;
           emit('scan:step-complete', { step: 'nuclei', data: nucleiResults });
-          logger.info(`[${scanId}] Nuclei scan complete`);
+          logger.info(`[${scanId}] Nuclei scan complete - Found ${nucleiResults.findings?.length || 0} issues`);
         } catch (error) {
-          logger.error(`[${scanId}] Nuclei scan failed:`, error);
+          logger.error(`[${scanId}] Nuclei scan failed:`, error.message, error.stack);
           emit('scan:error', { step: 'nuclei', error: error.message });
           results.nuclei = { findings: [], error: error.message };
         }

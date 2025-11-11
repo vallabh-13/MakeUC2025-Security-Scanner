@@ -15,10 +15,14 @@ export default function App() {
   // ✅ REAL WebSocket Setup - ACTIVE
   useEffect(() => {
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-    
+
     console.log('Connecting to WebSocket:', apiUrl);
     socketRef.current = io(apiUrl, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
 
     socketRef.current.on('connect', () => {
@@ -45,6 +49,10 @@ export default function App() {
     socketRef.current.on('scan:error', (data) => {
       console.error('Scan error:', data);
       addLog(`✗ Error in ${data.step}: ${data.error}`, 'error');
+      // Show error to user but don't stop scanning - other scans may still complete
+      if (data.error.includes('memory') || data.error.includes('buffer')) {
+        setError(`Warning: ${data.step} scan exceeded memory limits. Other scans continuing...`);
+      }
     });
 
     socketRef.current.on('scan:complete', (data) => {
