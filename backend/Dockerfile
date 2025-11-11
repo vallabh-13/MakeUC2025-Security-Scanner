@@ -9,8 +9,9 @@ RUN apk add --no-cache \
     bash \
     openssl
 
-# Install Nuclei
-RUN curl -L https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_3.3.6_linux_amd64.zip -o nuclei.zip && \
+# Install Nuclei - Get latest version dynamically
+RUN NUCLEI_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/') && \
+    curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_amd64.zip" -o nuclei.zip && \
     unzip nuclei.zip && \
     mv nuclei /usr/local/bin/ && \
     chmod +x /usr/local/bin/nuclei && \
