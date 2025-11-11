@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+const PDFDocument = require('pdfkit');
 
 /**
  * Generate PDF report from scan results
@@ -7,587 +7,230 @@ const puppeteer = require('puppeteer');
  * @returns {Buffer} - PDF file as buffer
  */
 async function generatePDF(scanResults, url) {
-  let browser;
-  
-  try {
-    // Launch headless Chrome
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
-    });
-    
-    const page = await browser.newPage();
-    
-    // Generate HTML content
-    const html = generateReportHTML(scanResults, url);
-    
-    // Set content with proper encoding
-    await page.setContent(html, { 
-      waitUntil: 'networkidle0',
-      timeout: 30000
-    });
-    
-    // Generate PDF with options
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
-      },
-      displayHeaderFooter: true,
-      headerTemplate: '<div></div>',
-      footerTemplate: `
-        <div style="font-size: 10px; text-align: center; width: 100%; color: #666;">
-          <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
-        </div>
-      `
-    });
-    
-    await browser.close();
-    
-    return pdfBuffer;
-    
-  } catch (error) {
-    if (browser) await browser.close();
-    console.error('PDF generation failed:', error);
-    throw new Error(`Failed to generate PDF: ${error.message}`);
-  }
-}
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 50,
+        bufferPages: true
+      });
 
-/**
- * Generate HTML report content
- * @param {Object} results - Scan results
- * @param {string} url - Target URL
- * @returns {string} - HTML content
- */
-function generateReportHTML(results, url) {
-  const { score, grade, severityCounts, findings, detectedTechnology, scannedAt } = results;
-  
-  const severityColors = {
-    critical: '#dc2626',
-    high: '#ea580c',
-    medium: '#ca8a04',
-    low: '#2563eb',
-    info: '#64748b'
-  };
-  
-  const scoreColor = score >= 80 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626';
-  
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Security Report - ${escapeHtml(url)}</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      color: #1f2937;
-      background: white;
-    }
-    
-    .header {
-      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-      color: white;
-      padding: 40px 30px;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    
-    .header h1 {
-      font-size: 32px;
-      margin-bottom: 10px;
-      font-weight: 700;
-    }
-    
-    .header .url {
-      font-size: 18px;
-      opacity: 0.9;
-      word-break: break-all;
-      margin-top: 8px;
-    }
-    
-    .header .date {
-      font-size: 14px;
-      opacity: 0.8;
-      margin-top: 10px;
-    }
-    
-    .container {
-      padding: 0 30px 30px;
-    }
-    
-    .score-section {
-      background: #f9fafb;
-      border-radius: 12px;
-      padding: 30px;
-      margin-bottom: 30px;
-      text-align: center;
-    }
-    
-    .score-circle {
-      width: 200px;
-      height: 200px;
-      margin: 0 auto 20px;
-      position: relative;
-    }
-    
-    .score-value {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 64px;
-      font-weight: bold;
-      color: ${scoreColor};
-    }
-    
-    .score-grade {
-      font-size: 32px;
-      font-weight: bold;
-      color: ${scoreColor};
-      margin-top: 10px;
-    }
-    
-    .score-label {
-      font-size: 16px;
-      color: #6b7280;
-      margin-bottom: 20px;
-    }
-    
-    .severity-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 15px;
-      margin-top: 30px;
-    }
-    
-    .severity-card {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .severity-count {
-      font-size: 36px;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-    
-    .severity-label {
-      font-size: 14px;
-      text-transform: uppercase;
-      color: #6b7280;
-      font-weight: 600;
-    }
-    
-    .tech-section {
-      background: #f9fafb;
-      border-radius: 12px;
-      padding: 25px;
-      margin-bottom: 30px;
-    }
-    
-    .section-title {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      color: #111827;
-      border-bottom: 3px solid #4f46e5;
-      padding-bottom: 10px;
-    }
-    
-    .tech-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-    }
-    
-    .tech-item {
-      background: white;
-      border-radius: 8px;
-      padding: 15px;
-      border-left: 4px solid #4f46e5;
-    }
-    
-    .tech-label {
-      font-size: 12px;
-      color: #6b7280;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
-    
-    .tech-value {
-      font-size: 16px;
-      font-weight: 600;
-      color: #111827;
-    }
-    
-    .findings-section {
-      margin-top: 40px;
-    }
-    
-    .finding {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      page-break-inside: avoid;
-      border-left: 5px solid #e5e7eb;
-    }
-    
-    .finding.critical {
-      border-left-color: ${severityColors.critical};
-    }
-    
-    .finding.high {
-      border-left-color: ${severityColors.high};
-    }
-    
-    .finding.medium {
-      border-left-color: ${severityColors.medium};
-    }
-    
-    .finding.low {
-      border-left-color: ${severityColors.low};
-    }
-    
-    .finding-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      margin-bottom: 15px;
-    }
-    
-    .finding-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #111827;
-      flex: 1;
-      margin-right: 15px;
-    }
-    
-    .severity-badge {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      text-transform: uppercase;
-      white-space: nowrap;
-      color: white;
-    }
-    
-    .severity-badge.critical {
-      background-color: ${severityColors.critical};
-    }
-    
-    .severity-badge.high {
-      background-color: ${severityColors.high};
-    }
-    
-    .severity-badge.medium {
-      background-color: ${severityColors.medium};
-    }
-    
-    .severity-badge.low {
-      background-color: ${severityColors.low};
-    }
-    
-    .severity-badge.info {
-      background-color: ${severityColors.info};
-    }
-    
-    .finding-description {
-      color: #4b5563;
-      margin-bottom: 15px;
-      line-height: 1.7;
-    }
-    
-    .recommendation {
-      background: #f0fdf4;
-      border-left: 4px solid #22c55e;
-      padding: 12px 15px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-    }
-    
-    .recommendation-label {
-      font-weight: bold;
-      color: #15803d;
-      margin-bottom: 5px;
-      font-size: 14px;
-    }
-    
-    .recommendation-text {
-      color: #166534;
-      font-size: 14px;
-    }
-    
-    .finding-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      font-size: 12px;
-      color: #6b7280;
-      padding-top: 10px;
-      border-top: 1px solid #e5e7eb;
-    }
-    
-    .finding-meta span {
-      display: flex;
-      align-items: center;
-    }
-    
-    .finding-meta strong {
-      color: #374151;
-      margin-right: 4px;
-    }
-    
-    .summary-box {
-      background: white;
-      border-radius: 12px;
-      padding: 25px;
-      margin-bottom: 30px;
-      border: 2px solid #e5e7eb;
-    }
-    
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-top: 20px;
-    }
-    
-    .summary-item {
-      text-align: center;
-      padding: 15px;
-      background: #f9fafb;
-      border-radius: 8px;
-    }
-    
-    .summary-number {
-      font-size: 32px;
-      font-weight: bold;
-      color: #4f46e5;
-      margin-bottom: 5px;
-    }
-    
-    .summary-label {
-      font-size: 14px;
-      color: #6b7280;
-    }
-    
-    .footer {
-      margin-top: 40px;
-      padding: 20px;
-      text-align: center;
-      color: #6b7280;
-      font-size: 12px;
-      border-top: 2px solid #e5e7eb;
-    }
-    
-    .footer p {
-      margin: 5px 0;
-    }
-    
-    @media print {
-      body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      const buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+      doc.on('error', reject);
+
+      const { score, grade, severityCounts, findings, detectedTechnology, scannedAt } = scanResults;
+
+      // Define colors
+      const colors = {
+        primary: '#4f46e5',
+        secondary: '#7c3aed',
+        critical: '#dc2626',
+        high: '#ea580c',
+        medium: '#ca8a04',
+        low: '#2563eb',
+        info: '#64748b',
+        success: '#16a34a',
+        gray: '#6b7280',
+        lightGray: '#e5e7eb',
+        darkGray: '#374151'
+      };
+
+      const scoreColor = score >= 80 ? colors.success : score >= 60 ? colors.medium : colors.critical;
+
+      // Helper function to add a section with padding
+      const addSection = (title, topMargin = 20) => {
+        if (doc.y > 700) doc.addPage();
+        doc.moveDown(topMargin / 15);
+        doc.fontSize(18).fillColor(colors.primary).text(title, { underline: true });
+        doc.moveDown(0.5);
+      };
+
+      // === HEADER ===
+      doc.rect(0, 0, doc.page.width, 120).fill(colors.primary);
+      doc.fontSize(28).fillColor('white').text('🛡️ Security Scan Report', 50, 30, { align: 'center' });
+      doc.fontSize(12).fillColor('white').text(url, 50, 65, { align: 'center', width: doc.page.width - 100 });
+
+      const scanDate = new Date(scannedAt).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      doc.fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 95, { align: 'center' });
+
+      doc.y = 150;
+
+      // === EXECUTIVE SUMMARY ===
+      addSection('Executive Summary', 0);
+
+      // Summary boxes
+      const summaryY = doc.y;
+      const boxWidth = 150;
+      const boxHeight = 80;
+      const spacing = 20;
+      const startX = (doc.page.width - (boxWidth * 3 + spacing * 2)) / 2;
+
+      // Security Score Box
+      doc.rect(startX, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(scoreColor).text(score.toString(), startX, summaryY + 15, { width: boxWidth, align: 'center' });
+      doc.fontSize(10).fillColor(colors.gray).text('Security Score', startX, summaryY + 55, { width: boxWidth, align: 'center' });
+
+      // Grade Box
+      doc.rect(startX + boxWidth + spacing, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(scoreColor).text(grade, startX + boxWidth + spacing, summaryY + 15, { width: boxWidth, align: 'center' });
+      doc.fontSize(10).fillColor(colors.gray).text('Overall Grade', startX + boxWidth + spacing, summaryY + 55, { width: boxWidth, align: 'center' });
+
+      // Total Issues Box
+      doc.rect(startX + (boxWidth + spacing) * 2, summaryY, boxWidth, boxHeight).fillAndStroke(colors.lightGray, colors.darkGray);
+      doc.fontSize(32).fillColor(colors.primary).text(findings.length.toString(), startX + (boxWidth + spacing) * 2, summaryY + 15, { width: boxWidth, align: 'center' });
+      doc.fontSize(10).fillColor(colors.gray).text('Total Issues', startX + (boxWidth + spacing) * 2, summaryY + 55, { width: boxWidth, align: 'center' });
+
+      doc.y = summaryY + boxHeight + 30;
+
+      // === SEVERITY BREAKDOWN ===
+      addSection('Severity Breakdown');
+
+      const severities = ['critical', 'high', 'medium', 'low', 'info'];
+      const severityY = doc.y;
+      const severityBoxWidth = 90;
+      const severityBoxHeight = 70;
+      const severityStartX = (doc.page.width - (severityBoxWidth * 5 + spacing * 4)) / 2;
+
+      severities.forEach((severity, index) => {
+        const x = severityStartX + (severityBoxWidth + spacing) * index;
+        const count = severityCounts[severity] || 0;
+        const color = colors[severity] || colors.gray;
+
+        doc.rect(x, severityY, severityBoxWidth, severityBoxHeight).fillAndStroke('#f9fafb', color);
+        doc.fontSize(24).fillColor(color).text(count.toString(), x, severityY + 10, { width: severityBoxWidth, align: 'center' });
+        doc.fontSize(9).fillColor(colors.gray).text(severity.toUpperCase(), x, severityY + 45, { width: severityBoxWidth, align: 'center' });
+      });
+
+      doc.y = severityY + severityBoxHeight + 20;
+
+      // === DETECTED TECHNOLOGIES ===
+      if (detectedTechnology && Object.keys(detectedTechnology).some(key => detectedTechnology[key] && (Array.isArray(detectedTechnology[key]) ? detectedTechnology[key].length > 0 : true))) {
+        addSection('Detected Technologies');
+
+        doc.fontSize(10).fillColor(colors.darkGray);
+
+        if (detectedTechnology.webServer) {
+          doc.fillColor(colors.gray).text('Web Server:', { continued: true });
+          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.webServer.name} ${detectedTechnology.webServer.version}`);
+        }
+
+        if (detectedTechnology.cms) {
+          const cmsName = typeof detectedTechnology.cms === 'string' ? detectedTechnology.cms : detectedTechnology.cms.name;
+          const cmsVersion = typeof detectedTechnology.cms === 'object' ? detectedTechnology.cms.version || '' : '';
+          doc.fillColor(colors.gray).text('CMS:', { continued: true });
+          doc.fillColor(colors.darkGray).text(` ${cmsName} ${cmsVersion}`);
+        }
+
+        if (detectedTechnology.backend && detectedTechnology.backend.length > 0) {
+          doc.fillColor(colors.gray).text('Backend:', { continued: true });
+          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.backend.map(b => `${b.name} ${b.version}`).join(', ')}`);
+        }
+
+        if (detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0) {
+          doc.fillColor(colors.gray).text('Frameworks:', { continued: true });
+          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.frameworks.map(f => f.name || f).join(', ')}`);
+        }
+
+        if (detectedTechnology.libraries && detectedTechnology.libraries.length > 0) {
+          doc.fillColor(colors.gray).text('Libraries:', { continued: true });
+          doc.fillColor(colors.darkGray).text(` ${detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ')}`);
+        }
+
+        doc.moveDown();
       }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🛡️ Security Scan Report</h1>
-    <div class="url">${escapeHtml(url)}</div>
-    <div class="date">Generated on ${new Date(scannedAt).toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}</div>
-  </div>
-  
-  <div class="container">
-    <!-- Executive Summary -->
-    <div class="summary-box">
-      <h2 class="section-title">Executive Summary</h2>
-      <div class="summary-grid">
-        <div class="summary-item">
-          <div class="summary-number">${score}</div>
-          <div class="summary-label">Security Score</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-number">${grade}</div>
-          <div class="summary-label">Overall Grade</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-number">${findings.length}</div>
-          <div class="summary-label">Total Issues</div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Score Section -->
-    <div class="score-section">
-      <h2 class="section-title">Security Score Breakdown</h2>
-      <div class="score-circle">
-        <svg width="200" height="200" viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="90" fill="none" stroke="#e5e7eb" stroke-width="20"/>
-          <circle cx="100" cy="100" r="90" fill="none" stroke="${scoreColor}" stroke-width="20"
-                  stroke-dasharray="${score * 5.65} 565" 
-                  stroke-dashoffset="0"
-                  transform="rotate(-90 100 100)"
-                  stroke-linecap="round"/>
-        </svg>
-        <div class="score-value">${score}</div>
-      </div>
-      <div class="score-grade">Grade: ${grade}</div>
-      <div class="score-label">out of 100</div>
-      
-      <div class="severity-grid">
-        ${Object.entries(severityCounts).map(([severity, count]) => `
-          <div class="severity-card">
-            <div class="severity-count" style="color: ${severityColors[severity]}">${count}</div>
-            <div class="severity-label">${severity}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-    
-    <!-- Detected Technologies -->
-    ${detectedTechnology ? `
-    <div class="tech-section">
-      <h2 class="section-title">Detected Technologies</h2>
-      <div class="tech-grid">
-        ${detectedTechnology.webServer ? `
-          <div class="tech-item">
-            <div class="tech-label">Web Server</div>
-            <div class="tech-value">${escapeHtml(detectedTechnology.webServer.name)} ${escapeHtml(detectedTechnology.webServer.version)}</div>
-          </div>
-        ` : ''}
-        ${detectedTechnology.cms ? `
-          <div class="tech-item">
-            <div class="tech-label">Content Management System</div>
-            <div class="tech-value">${escapeHtml(detectedTechnology.cms.name || detectedTechnology.cms)} ${detectedTechnology.cms.version || ''}</div>
-          </div>
-        ` : ''}
-        ${detectedTechnology.backend && detectedTechnology.backend.length > 0 ? `
-          <div class="tech-item">
-            <div class="tech-label">Backend Technology</div>
-            <div class="tech-value">${detectedTechnology.backend.map(b => `${escapeHtml(b.name)} ${escapeHtml(b.version)}`).join(', ')}</div>
-          </div>
-        ` : ''}
-        ${detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0 ? `
-          <div class="tech-item">
-            <div class="tech-label">Frameworks</div>
-            <div class="tech-value">${detectedTechnology.frameworks.map(f => escapeHtml(f.name)).join(', ')}</div>
-          </div>
-        ` : ''}
-        ${detectedTechnology.libraries && detectedTechnology.libraries.length > 0 ? `
-          <div class="tech-item">
-            <div class="tech-label">JavaScript Libraries</div>
-            <div class="tech-value">${detectedTechnology.libraries.slice(0, 3).map(l => escapeHtml(l.name)).join(', ')}</div>
-          </div>
-        ` : ''}
-        ${detectedTechnology.technologies && detectedTechnology.technologies.length > 0 ? `
-          <div class="tech-item">
-            <div class="tech-label">Additional Technologies</div>
-            <div class="tech-value">${detectedTechnology.technologies.slice(0, 3).map(t => escapeHtml(t.name)).join(', ')}</div>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-    ` : ''}
-    
-    <!-- Security Findings -->
-    <div class="findings-section">
-      <h2 class="section-title">Security Findings (${findings.length} ${findings.length === 1 ? 'Issue' : 'Issues'})</h2>
-      ${findings.length === 0 ? `
-        <div style="text-align: center; padding: 40px; color: #16a34a;">
-          <div style="font-size: 48px; margin-bottom: 10px;">✓</div>
-          <div style="font-size: 20px; font-weight: bold;">No security issues found!</div>
-          <div style="font-size: 14px; margin-top: 10px;">Your website appears to be secure based on our scans.</div>
-        </div>
-      ` : findings.map((finding, index) => `
-        <div class="finding ${finding.severity}">
-          <div class="finding-header">
-            <div class="finding-title">${index + 1}. ${escapeHtml(finding.title)}</div>
-            <span class="severity-badge ${finding.severity}">
-              ${finding.severity}
-            </span>
-          </div>
-          <div class="finding-description">${escapeHtml(finding.description)}</div>
-          ${finding.recommendation ? `
-            <div class="recommendation">
-              <div class="recommendation-label">💡 Recommendation</div>
-              <div class="recommendation-text">${escapeHtml(finding.recommendation)}</div>
-            </div>
-          ` : ''}
-          <div class="finding-meta">
-            ${finding.cve ? `<span><strong>CVE:</strong> ${escapeHtml(finding.cve)}</span>` : ''}
-            ${finding.cwe ? `<span><strong>CWE:</strong> ${escapeHtml(finding.cwe)}</span>` : ''}
-            ${finding.owasp ? `<span><strong>OWASP:</strong> ${escapeHtml(finding.owasp)}</span>` : ''}
-            ${finding.cvss ? `<span><strong>CVSS:</strong> ${escapeHtml(finding.cvss)}</span>` : ''}
-            ${finding.component ? `<span><strong>Component:</strong> ${escapeHtml(finding.component)} ${escapeHtml(finding.componentVersion || '')}</span>` : ''}
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  </div>
-  
-  <div class="footer">
-    <p><strong>Security Scanner Report</strong></p>
-    <p>This report was automatically generated by the Security Scanner System</p>
-    <p>For questions or concerns about these findings, please contact your security team</p>
-    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
-      Report ID: ${Date.now()} | Scan Date: ${new Date(scannedAt).toISOString()}
-    </p>
-  </div>
-</body>
-</html>
-  `;
-}
 
-/**
- * Escape HTML special characters
- * @param {string} text - Text to escape
- * @returns {string} - Escaped text
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return text.toString().replace(/[&<>"']/g, m => map[m]);
+      // === SECURITY FINDINGS ===
+      addSection('Security Findings');
+
+      if (findings.length === 0) {
+        doc.fontSize(12).fillColor(colors.success).text('✓ No security issues found!', { align: 'center' });
+        doc.fontSize(10).fillColor(colors.gray).text('Your website appears to be secure based on our scans.', { align: 'center' });
+      } else {
+        findings.forEach((finding, index) => {
+          // Check if we need a new page
+          if (doc.y > 650) doc.addPage();
+
+          const findingY = doc.y;
+          const findingColor = colors[finding.severity] || colors.gray;
+
+          // Left border
+          doc.rect(50, findingY, 5, 60).fill(findingColor);
+
+          // Finding box
+          doc.rect(55, findingY, doc.page.width - 110, 60).fillAndStroke('#ffffff', colors.lightGray);
+
+          // Finding number and title
+          doc.fontSize(12).fillColor(colors.darkGray).text(`${index + 1}. ${finding.title}`, 65, findingY + 10, { width: doc.page.width - 220 });
+
+          // Severity badge
+          const badgeWidth = 80;
+          const badgeX = doc.page.width - 100 - badgeWidth;
+          doc.roundedRect(badgeX, findingY + 8, badgeWidth, 20, 3).fill(findingColor);
+          doc.fontSize(9).fillColor('white').text(finding.severity.toUpperCase(), badgeX, findingY + 12, { width: badgeWidth, align: 'center' });
+
+          // Description
+          doc.fontSize(9).fillColor(colors.darkGray).text(finding.description, 65, findingY + 30, { width: doc.page.width - 130 });
+
+          doc.y = findingY + 65;
+
+          // Recommendation
+          if (finding.recommendation) {
+            if (doc.y > 700) doc.addPage();
+
+            doc.rect(55, doc.y, doc.page.width - 110, 40).fillAndStroke('#f0fdf4', colors.success);
+            doc.fontSize(9).fillColor(colors.success).text('💡 Recommendation:', 65, doc.y + 8);
+            doc.fontSize(8).fillColor('#166534').text(finding.recommendation, 65, doc.y + 22, { width: doc.page.width - 130 });
+            doc.y += 45;
+          }
+
+          // Metadata
+          const metaItems = [];
+          if (finding.cve) metaItems.push(`CVE: ${finding.cve}`);
+          if (finding.cwe) metaItems.push(`CWE: ${finding.cwe}`);
+          if (finding.owasp) metaItems.push(`OWASP: ${finding.owasp}`);
+          if (finding.cvss) metaItems.push(`CVSS: ${finding.cvss}`);
+          if (finding.component) metaItems.push(`Component: ${finding.component} ${finding.componentVersion || ''}`);
+
+          if (metaItems.length > 0) {
+            doc.fontSize(8).fillColor(colors.gray).text(metaItems.join(' | '), 65, doc.y + 5, { width: doc.page.width - 130 });
+            doc.y += 15;
+          }
+
+          doc.moveDown(0.5);
+        });
+      }
+
+      // === FOOTER ===
+      const pageCount = doc.bufferedPageRange().count;
+      for (let i = 0; i < pageCount; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8).fillColor(colors.gray).text(
+          `Page ${i + 1} of ${pageCount} | Report ID: ${Date.now()} | ${new Date(scannedAt).toISOString()}`,
+          50,
+          doc.page.height - 50,
+          { align: 'center', width: doc.page.width - 100 }
+        );
+      }
+
+      doc.end();
+
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      reject(new Error(`Failed to generate PDF: ${error.message}`));
+    }
+  });
 }
 
 module.exports = { generatePDF };
