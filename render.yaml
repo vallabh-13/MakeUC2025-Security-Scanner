@@ -2,7 +2,7 @@ services:
   - type: web
     name: security-scanner-backend
     runtime: docker
-    plan: free
+    plan: free  # Note: Upgrade to 'standard' ($7/month, 2GB RAM) for better performance
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:

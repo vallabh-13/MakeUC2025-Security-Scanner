@@ -53,6 +53,10 @@ app.use('/api/scan', limiter);
 // Store active scans
 const activeScans = new Map();
 
+// Concurrency limiter - prevent memory issues on Render free tier (0.5GB RAM)
+let runningScansCount = 0;
+const MAX_CONCURRENT_SCANS = 1; // Only 1 scan at a time on limited memory
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -74,6 +78,8 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     activeScans: activeScans.size,
+    runningScans: runningScansCount,
+    maxConcurrentScans: MAX_CONCURRENT_SCANS,
     version: '1.0.0'
   });
 });
@@ -99,13 +105,23 @@ io.on('connection', (socket) => {
 // Main scan endpoint
 app.post('/api/scan', asyncHandler(async (req, res) => {
   const scanId = Date.now().toString();
-  
+
   const { url, socketId } = req.body;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL is required' });
   }
-  
+
+  // Check if we've reached the concurrent scan limit
+  if (runningScansCount >= MAX_CONCURRENT_SCANS) {
+    logger.warn(`Scan rejected: ${scanId} - Max concurrent scans reached (${runningScansCount}/${MAX_CONCURRENT_SCANS})`);
+    return res.status(503).json({
+      error: 'Server is currently processing another scan. Please try again in a few minutes.',
+      runningScans: runningScansCount,
+      maxScans: MAX_CONCURRENT_SCANS
+    });
+  }
+
   logger.info(`Starting scan: ${scanId} for ${url}`);
   
   // Validate URL
@@ -142,12 +158,16 @@ app.post('/api/scan', asyncHandler(async (req, res) => {
   };
   
   emit('scan:progress', { step: 'start', message: 'Scan initiated...', progress: 5 });
-  
+
+  // Increment running scans counter
+  runningScansCount++;
+  logger.info(`[${scanId}] Running scans: ${runningScansCount}/${MAX_CONCURRENT_SCANS}`);
+
   // Run scans with progress updates
-  runScanWithProgress(url, hostname, scanId, emit);
+  runScanWithProgress(url, hostname, scanId, emit, socketId);
 }));
 
-async function runScanWithProgress(url, hostname, scanId, emit) {
+async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
   const results = {
     detectedSoftware: null,
     ssl: null,
@@ -155,7 +175,7 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     nuclei: null,
     cve: null
   };
-  
+
   try {
     // Step 1: Software Detection
     emit('scan:progress', { step: 'detection', message: 'Detecting technologies...', progress: 10 });
@@ -284,10 +304,19 @@ async function runScanWithProgress(url, hostname, scanId, emit) {
     emit('scan:complete', { results: finalResults, progress: 100 });
 
     logger.info(`[${scanId}] Scan complete - Score: ${finalResults.score}/100, Issues: ${finalResults.totalIssues}`);
-    
+
   } catch (error) {
     logger.error(`[${scanId}] Fatal scan error:`, error);
     emit('scan:failed', { error: error.message });
+  } finally {
+    // Always decrement running scans counter when scan finishes
+    runningScansCount--;
+    logger.info(`[${scanId}] Scan finished. Running scans: ${runningScansCount}/${MAX_CONCURRENT_SCANS}`);
+
+    // Clean up active scans map
+    if (socketId) {
+      activeScans.delete(socketId);
+    }
   }
 }
 

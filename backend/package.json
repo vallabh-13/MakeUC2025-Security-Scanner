@@ -4,7 +4,7 @@
   "description": "Security Scanner API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node --max-old-space-size=400 server.js",
     "dev": "nodemon server.js",
     "test": "echo \"Tests not implemented yet\"",
     "logs": "tail -f logs/combined.log"

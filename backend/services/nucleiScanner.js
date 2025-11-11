@@ -33,7 +33,7 @@ async function scanWithNuclei(url) {
     // Execute Nuclei
     await execPromise(command, {
       timeout: 300000, // 5 minutes max
-      maxBuffer: 100 * 1024 * 1024 // 100MB buffer (increased from 20MB to handle large scans)
+      maxBuffer: 20 * 1024 * 1024 // 20MB buffer - optimized for Render's memory constraints
     });
     
     // Read results from output file
