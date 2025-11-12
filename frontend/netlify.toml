@@ -8,9 +8,9 @@
   # Environment variables for build
   [build.environment]
     NODE_VERSION = "20"
-    # IMPORTANT: Update this URL after deploying backend to Fly.io
-    # It will be in format: https://your-app-name.fly.dev
-    VITE_BACKEND_URL = "https://security-scanner-backend.fly.dev"
+    # IMPORTANT: Update this URL after deploying backend to Render
+    # It will be in format: https://your-app-name.onrender.com
+    VITE_BACKEND_URL = "https://security-scanner-backend-PLACEHOLDER.onrender.com"
 
 # Redirect rules for SPA (Single Page Application)
 [[redirects]]
