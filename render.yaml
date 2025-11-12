@@ -3,7 +3,7 @@ services:
   - type: web
     name: security-scanner-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./backend
     region: oregon  # Free tier region
     plan: free
