@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -31,34 +30,21 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
-// Manual CORS handling for Lambda compatibility (MUST be first)
+// Middleware
+app.use(express.json());
+
+// Manual CORS handling for Lambda compatibility
 app.use((req, res, next) => {
-  // Only set if not already set to avoid duplicates
-  if (!res.getHeader('Access-Control-Allow-Origin')) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  if (!res.getHeader('Access-Control-Allow-Methods')) {
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  }
-  if (!res.getHeader('Access-Control-Allow-Headers')) {
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.sendStatus(200);
   }
   next();
 });
-
-// Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: false,
-  crossOriginOpenerPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
-
-app.use(express.json());
 
 // Rate limiting
 const limiter = rateLimit({
