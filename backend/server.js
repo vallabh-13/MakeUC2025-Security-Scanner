@@ -53,6 +53,9 @@ app.use('/api/scan', limiter);
 // Store active scans
 const activeScans = new Map();
 
+// Store scan progress for polling (in-memory cache)
+const scanProgressStore = new Map();
+
 // Concurrency limiter - prevent memory issues on Render free tier (0.5GB RAM)
 let runningScansCount = 0;
 const MAX_CONCURRENT_SCANS = 1; // Only 1 scan at a time on limited memory
@@ -82,6 +85,22 @@ app.get('/api/health', (req, res) => {
     maxConcurrentScans: MAX_CONCURRENT_SCANS,
     version: '1.0.0'
   });
+});
+
+// Polling endpoint for scan status
+app.get('/api/scan/:scanId/status', (req, res) => {
+  const { scanId } = req.params;
+
+  const scanData = scanProgressStore.get(scanId);
+
+  if (!scanData) {
+    return res.status(404).json({
+      error: 'Scan not found',
+      scanId
+    });
+  }
+
+  res.json(scanData);
 });
 
 // WebSocket connection handler
@@ -133,30 +152,49 @@ app.post('/api/scan', asyncHandler(async (req, res) => {
   
   const hostname = validation.hostname;
   
+  // Initialize progress store for polling
+  scanProgressStore.set(scanId, {
+    scanId,
+    status: 'processing',
+    progress: 5,
+    message: 'Scan initiated...',
+    step: 'start',
+    results: null,
+    error: null,
+    startedAt: new Date().toISOString()
+  });
+
   // Send initial response
-  res.json({ 
+  res.json({
     message: 'Scan started',
     scanId,
     status: 'processing',
     estimatedTime: '2-5 minutes'
   });
-  
-  // Get socket for real-time updates
+
+  // Get socket for real-time updates (optional - fallback for WebSocket)
   const clientSocket = socketId ? io.sockets.sockets.get(socketId) : null;
-  
+
   if (clientSocket) {
     activeScans.set(socketId, scanId);
   }
-  
-  // Emit progress updates
+
+  // Emit progress updates (supports both Socket.IO and polling)
   const emit = (event, data) => {
+    // Update progress store for polling
+    const currentProgress = scanProgressStore.get(scanId) || {};
+    scanProgressStore.set(scanId, {
+      ...currentProgress,
+      ...data,
+      lastUpdated: new Date().toISOString()
+    });
+
+    // Also emit via Socket.IO if client is connected
     if (clientSocket && clientSocket.connected) {
       clientSocket.emit(event, { scanId, ...data });
-    } else if (clientSocket && !clientSocket.connected) {
-      logger.warn(`[${scanId}] Cannot emit ${event} - client socket disconnected`);
     }
   };
-  
+
   emit('scan:progress', { step: 'start', message: 'Scan initiated...', progress: 5 });
 
   // Increment running scans counter
@@ -317,17 +355,33 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
     finalResults.url = url;
 
     // Step 8: Complete
-    emit('scan:complete', { results: finalResults, progress: 100 });
+    emit('scan:complete', {
+      status: 'completed',
+      results: finalResults,
+      progress: 100,
+      message: 'Scan completed successfully!'
+    });
 
     logger.info(`[${scanId}] Scan complete - Score: ${finalResults.score}/100, Issues: ${finalResults.totalIssues}`);
 
   } catch (error) {
     logger.error(`[${scanId}] Fatal scan error:`, error);
-    emit('scan:failed', { error: error.message });
+    emit('scan:failed', {
+      status: 'failed',
+      error: error.message,
+      progress: 0,
+      message: 'Scan failed'
+    });
   } finally {
     // Always decrement running scans counter when scan finishes
     runningScansCount--;
     logger.info(`[${scanId}] Scan finished. Running scans: ${runningScansCount}/${MAX_CONCURRENT_SCANS}`);
+
+    // Clean up after 5 minutes to prevent memory leaks
+    setTimeout(() => {
+      scanProgressStore.delete(scanId);
+      logger.info(`[${scanId}] Cleaned up scan progress data`);
+    }, 5 * 60 * 1000);
 
     // Clean up active scans map
     if (socketId) {

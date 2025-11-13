@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
     import { motion } from 'framer-motion';
     import Header from '../components/Header';
     import Footer from '../components/Footer';
@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react';
     import ScanResults from '../components/ScanResults';
     import { toast } from 'react-toastify';
     import { Shield, Search, AlertTriangle, Bug, ExternalLink, Linkedin, Mail } from 'lucide-react';
-    import io from 'socket.io-client';
 
 
 
@@ -86,96 +85,115 @@ import React, { useState, useEffect } from 'react';
       const [isScanning, setIsScanning] = useState(false);
       const [scanResults, setScanResults] = useState<ScanResult | null>(null);
       const [isDarkMode, setIsDarkMode] = useState(true);
-      const [socket, setSocket] = useState<any>(null);
       const [scanProgress, setScanProgress] = useState(0);
       const [scanMessage, setScanMessage] = useState('');
+      const [currentScanId, setCurrentScanId] = useState<string | null>(null);
+      const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+      const lastStepRef = useRef<string>('');
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
-
-        const socketUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        const newSocket = io(socketUrl);
-        setSocket(newSocket);
-
-        newSocket.on('scan:progress', (data) => {
-          // Update progress state
-          if (data.progress !== undefined) {
-            setScanProgress(data.progress);
-          }
-          if (data.message) {
-            setScanMessage(data.message);
-          }
-
-          // Only show toasts for key progress steps
-          const importantSteps = ['start', 'detection', 'parallel-scans', 'aggregate'];
-          if (importantSteps.includes(data.step)) {
-            toast.info(data.message, {
-              style: {
-                background: '#000000',
-                color: '#ffffff',
-                border: '1px solid #333333'
-              }
-            });
-          }
-        });
-
-        newSocket.on('scan:step-complete', (data) => {
-          // Update progress if provided
-          if (data.progress !== undefined) {
-            setScanProgress(data.progress);
-          }
-
-          // Only show completion toasts for main scan steps
-          const mainSteps = ['detection', 'ssl', 'ports', 'nuclei', 'cve'];
-          if (mainSteps.includes(data.step)) {
-            const stepNames = {
-              'detection': 'Technology Detection',
-              'ssl': 'SSL/TLS Analysis',
-              'ports': 'Port Scanning',
-              'nuclei': 'Vulnerability Scanning',
-              'cve': 'CVE Database Check'
-            };
-            toast.success(`${stepNames[data.step]} complete!`, {
-              style: {
-                background: '#000000',
-                color: '#ffffff',
-                border: '1px solid #22c55e'
-              }
-            });
-          }
-        });
-
-        newSocket.on('scan:complete', (data) => {
-          setScanResults(data.results);
-          setIsScanning(false);
-          setScanProgress(100);
-          setScanMessage('Scan completed!');
-          toast.success('Scan completed successfully!', {
-            style: {
-              background: '#000000',
-              color: '#ffffff',
-              border: '1px solid #22c55e'
-            }
-          });
-        });
-
-        newSocket.on('scan:failed', (data) => {
-          setIsScanning(false);
-          setScanProgress(0);
-          setScanMessage('');
-          toast.error(data.error, {
-            style: {
-              background: '#000000',
-              color: '#ffffff',
-              border: '1px solid #ef4444'
-            }
-          });
-        });
-
-        return () => {
-          newSocket.disconnect();
-        };
       }, []);
+
+      // Polling logic - check scan status every 2 seconds
+      useEffect(() => {
+        if (!currentScanId || !isScanning) {
+          return;
+        }
+
+        const pollScanStatus = async () => {
+          try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+            const response = await fetch(`${backendUrl}/api/scan/${currentScanId}/status`);
+
+            if (!response.ok) {
+              throw new Error('Failed to fetch scan status');
+            }
+
+            const data = await response.json();
+
+            // Update progress
+            if (data.progress !== undefined) {
+              setScanProgress(data.progress);
+            }
+            if (data.message) {
+              setScanMessage(data.message);
+            }
+
+            // Show toasts for important steps (only once per step)
+            const importantSteps = ['start', 'detection', 'parallel-scans', 'aggregate'];
+            if (data.step && importantSteps.includes(data.step) && lastStepRef.current !== data.step) {
+              lastStepRef.current = data.step;
+              toast.info(data.message, {
+                style: {
+                  background: '#000000',
+                  color: '#ffffff',
+                  border: '1px solid #333333'
+                }
+              });
+            }
+
+            // Check if scan is complete
+            if (data.status === 'completed' && data.results) {
+              setScanResults(data.results);
+              setIsScanning(false);
+              setScanProgress(100);
+              setScanMessage('Scan completed!');
+              setCurrentScanId(null);
+              lastStepRef.current = '';
+
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+
+              toast.success('Scan completed successfully!', {
+                style: {
+                  background: '#000000',
+                  color: '#ffffff',
+                  border: '1px solid #22c55e'
+                }
+              });
+            }
+
+            // Check if scan failed
+            if (data.status === 'failed') {
+              setIsScanning(false);
+              setScanProgress(0);
+              setScanMessage('');
+              setCurrentScanId(null);
+              lastStepRef.current = '';
+
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+
+              toast.error(data.error || 'Scan failed', {
+                style: {
+                  background: '#000000',
+                  color: '#ffffff',
+                  border: '1px solid #ef4444'
+                }
+              });
+            }
+          } catch (error: any) {
+            console.error('Polling error:', error);
+          }
+        };
+
+        // Start polling
+        pollScanStatus(); // Initial call
+        pollingIntervalRef.current = setInterval(pollScanStatus, 2000); // Poll every 2 seconds
+
+        // Cleanup on unmount or when scanning stops
+        return () => {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        };
+      }, [currentScanId, isScanning]);
 
       const toggleDarkMode = () => {
         setIsDarkMode(!isDarkMode);
@@ -187,6 +205,7 @@ import React, { useState, useEffect } from 'react';
         setScanResults(null);
         setScanProgress(0);
         setScanMessage('Initializing scan...');
+        lastStepRef.current = '';
 
         try {
           // Check backend health first
@@ -202,7 +221,7 @@ import React, { useState, useEffect } from 'react';
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url, socketId: socket?.id }),
+            body: JSON.stringify({ url }),
           });
 
           if (!scanResponse.ok) {
@@ -210,10 +229,25 @@ import React, { useState, useEffect } from 'react';
             throw new Error(errorData.error || 'Scan failed');
           }
 
+          const scanData = await scanResponse.json();
+
+          // Store scanId to start polling
+          if (scanData.scanId) {
+            setCurrentScanId(scanData.scanId);
+            toast.info('Scan started! Monitoring progress...', {
+              style: {
+                background: '#000000',
+                color: '#ffffff',
+                border: '1px solid #333333'
+              }
+            });
+          }
+
         } catch (error: any) {
           setIsScanning(false);
           setScanProgress(0);
           setScanMessage('');
+          setCurrentScanId(null);
           toast.error(error.message || 'An error occurred', {
             style: {
               background: '#000000',
