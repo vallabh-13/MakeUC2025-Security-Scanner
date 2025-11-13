@@ -19,7 +19,9 @@ async function generatePDF(scanResults, url) {
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
-        bufferPages: true
+        bufferPages: true,
+        // Use built-in font that works in Lambda
+        font: 'Helvetica'
       });
 
       const buffers = [];
@@ -64,7 +66,7 @@ async function generatePDF(scanResults, url) {
       const addSection = (title, topMargin = 20) => {
         if (doc.y > 700) doc.addPage();
         doc.moveDown(topMargin / 12);
-        doc.fontSize(18).fillColor(colors.primary).text(title, 50, doc.y, {
+        doc.font('Helvetica-Bold').fontSize(18).fillColor(colors.primary).text(title, 50, doc.y, {
           align: 'center',
           width: doc.page.width - 100,
           underline: true,
@@ -77,13 +79,13 @@ async function generatePDF(scanResults, url) {
       doc.rect(0, 0, doc.page.width, 120).fill(colors.primary);
 
       // Title - removed emoji to fix encoding issues
-      doc.fontSize(28).fillColor('white').text('Security Scan Report', 50, 30, {
+      doc.font('Helvetica-Bold').fontSize(28).fillColor('white').text('Security Scan Report', 50, 30, {
         align: 'center',
         width: doc.page.width - 100
       });
 
       // URL
-      doc.fontSize(12).fillColor('white').text(url, 50, 68, {
+      doc.font('Helvetica').fontSize(12).fillColor('white').text(url, 50, 68, {
         align: 'center',
         width: doc.page.width - 100
       });
@@ -97,7 +99,7 @@ async function generatePDF(scanResults, url) {
         hour: '2-digit',
         minute: '2-digit'
       });
-      doc.fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 92, {
+      doc.font('Helvetica').fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 92, {
         align: 'center',
         width: doc.page.width - 100
       });
@@ -121,13 +123,13 @@ async function generatePDF(scanResults, url) {
       // Security Score Box
       doc.rect(startX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(scoreColor)
+      doc.font('Helvetica-Bold').fontSize(32).fillColor(scoreColor)
         .text(score.toString(), startX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.fontSize(10).fillColor(colors.gray)
+      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
         .text('Security Score', startX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -138,13 +140,13 @@ async function generatePDF(scanResults, url) {
       const gradeX = startX + boxWidth + spacing;
       doc.rect(gradeX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(scoreColor)
+      doc.font('Helvetica-Bold').fontSize(32).fillColor(scoreColor)
         .text(grade, gradeX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.fontSize(10).fillColor(colors.gray)
+      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
         .text('Overall Grade', gradeX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -155,13 +157,13 @@ async function generatePDF(scanResults, url) {
       const issuesX = startX + (boxWidth + spacing) * 2;
       doc.rect(issuesX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.fontSize(32).fillColor(colors.primary)
+      doc.font('Helvetica-Bold').fontSize(32).fillColor(colors.primary)
         .text(findings.length.toString(), issuesX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.fontSize(10).fillColor(colors.gray)
+      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
         .text('Total Issues', issuesX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -191,14 +193,14 @@ async function generatePDF(scanResults, url) {
         doc.rect(x, severityY, severityBoxWidth, severityBoxHeight)
           .fillAndStroke('#f9fafb', color);
 
-        doc.fontSize(24).fillColor(color)
+        doc.font('Helvetica-Bold').fontSize(24).fillColor(color)
           .text(count.toString(), x, severityY + 12, {
             width: severityBoxWidth,
             align: 'center',
             continued: false
           });
 
-        doc.fontSize(9).fillColor(colors.gray)
+        doc.font('Helvetica').fontSize(9).fillColor(colors.gray)
           .text(severity.toUpperCase(), x, severityY + 48, {
             width: severityBoxWidth,
             align: 'center',
