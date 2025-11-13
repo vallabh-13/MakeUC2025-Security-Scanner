@@ -19,10 +19,12 @@ async function generatePDF(scanResults, url) {
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
-        bufferPages: true,
-        // Use built-in font that works in Lambda
-        font: 'Helvetica'
+        bufferPages: true
       });
+
+      // Set default font immediately - CRITICAL for Lambda
+      doc.font('Helvetica');
+      console.error('[PDF] Default font set to Helvetica');
 
       const buffers = [];
       doc.on('data', buffers.push.bind(buffers));
@@ -104,10 +106,10 @@ async function generatePDF(scanResults, url) {
         width: doc.page.width - 100
       });
 
-      // Reset Y position after header
+      // Reset Y position and color after header - CRITICAL FIX
       doc.y = 140;
-
-      console.error('[PDF] Header complete');
+      doc.fillColor(colors.darkGray); // Reset to dark color for body text
+      console.error('[PDF] Header complete, fill color reset to', colors.darkGray);
 
       // === EXECUTIVE SUMMARY ===
       addSection('Executive Summary', 0);

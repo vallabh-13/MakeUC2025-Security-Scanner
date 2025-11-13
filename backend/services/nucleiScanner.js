@@ -16,11 +16,7 @@ async function scanWithNuclei(url) {
     // Create temporary directories for Nuclei in /tmp (Lambda-compatible)
     const os = require('os');
     const tmpDir = os.tmpdir();
-    const nucleiConfigDir = path.join(tmpDir, '.nuclei-config');
     const outputFile = path.join(tmpDir, `nuclei-${Date.now()}.json`);
-
-    // Create config directory
-    await fs.mkdir(nucleiConfigDir, { recursive: true }).catch(() => {});
 
     // Nuclei command with Lambda-compatible settings:
     // -u: Target URL
@@ -30,11 +26,12 @@ async function scanWithNuclei(url) {
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
-    // -config: Use /tmp for config (Lambda read-only filesystem fix)
-    // -duc: Disable update check
-    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -config "${nucleiConfigDir}" -duc`;
+    // -duc: Disable update check (prevents config file creation)
+    // -nc: No color output
+    // No -config flag - let it fail gracefully
+    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc`;
 
-    console.log('Running Nuclei scan with config dir:', nucleiConfigDir);
+    console.log('Running Nuclei scan (Lambda mode - simplified config)');
 
     // Execute Nuclei with HOME set to /tmp for Lambda compatibility
     await execPromise(command, {
@@ -43,7 +40,9 @@ async function scanWithNuclei(url) {
       env: {
         ...process.env,
         HOME: tmpDir, // Force Nuclei to use /tmp for all config/cache
-        NUCLEI_CONFIG_DIR: nucleiConfigDir
+        TMPDIR: tmpDir,
+        TEMP: tmpDir,
+        TMP: tmpDir
       }
     });
     
@@ -60,8 +59,6 @@ async function scanWithNuclei(url) {
 
     // Clean up temp files
     await fs.unlink(outputFile).catch(() => {});
-    // Clean up config directory
-    await fs.rm(nucleiConfigDir, { recursive: true, force: true }).catch(() => {});
 
     // Parse JSON Lines output
     const lines = output.trim().split('\n').filter(Boolean);
