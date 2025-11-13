@@ -9,6 +9,12 @@ const PDFDocument = require('pdfkit');
 async function generatePDF(scanResults, url) {
   return new Promise((resolve, reject) => {
     try {
+      console.log('[PDF] Starting PDF generation for URL:', url);
+      console.log('[PDF] Scan results keys:', Object.keys(scanResults));
+      console.log('[PDF] Findings count:', scanResults.findings?.length || 0);
+      console.log('[PDF] Score:', scanResults.score);
+      console.log('[PDF] Grade:', scanResults.grade);
+
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
@@ -19,11 +25,22 @@ async function generatePDF(scanResults, url) {
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => {
         const pdfBuffer = Buffer.concat(buffers);
+        console.log('[PDF] PDF generation complete. Size:', pdfBuffer.length, 'bytes');
         resolve(pdfBuffer);
       });
-      doc.on('error', reject);
+      doc.on('error', (err) => {
+        console.error('[PDF] PDF generation error:', err);
+        reject(err);
+      });
 
       const { score, grade, severityCounts, findings, detectedTechnology, scannedAt } = scanResults;
+
+      if (!score && score !== 0) {
+        console.error('[PDF] ERROR: Missing score in scan results!');
+      }
+      if (!findings || !Array.isArray(findings)) {
+        console.error('[PDF] ERROR: Missing or invalid findings array!');
+      }
 
       // Define colors
       const colors = {

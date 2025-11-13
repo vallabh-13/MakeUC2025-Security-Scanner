@@ -54,7 +54,8 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results, onDownloadReport }) 
       case 'high': return 'text-red-500 bg-red-50';
       case 'medium': return 'text-yellow-600 bg-yellow-50';
       case 'low': return 'text-blue-600 bg-blue-50';
-      default: return 'text-slate-600 bg-slate-50';
+      case 'info': return 'text-cyan-600 bg-cyan-50';
+      default: return 'text-cyan-600 bg-cyan-50';
     }
   };
 

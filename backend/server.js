@@ -385,17 +385,25 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
 // PDF download endpoint
 app.get('/api/report/:scanId/pdf', asyncHandler(async (req, res) => {
   const { scanId } = req.params;
+
+  logger.info(`[PDF Endpoint] Received request for scan ${scanId}`);
+  logger.info(`[PDF Endpoint] Query params keys: ${Object.keys(req.query).join(', ')}`);
+
   const results = req.query.results ? JSON.parse(decodeURIComponent(req.query.results)) : null;
   const url = req.query.url || 'Unknown URL';
-  
+
   if (!results) {
+    logger.error(`[PDF Endpoint] No results found in request for scan ${scanId}`);
     return res.status(404).json({ error: 'Scan results not found' });
   }
-  
-  logger.info(`Generating PDF for scan ${scanId}`);
-  
+
+  logger.info(`[PDF Endpoint] Results received - Score: ${results.score}, Findings: ${results.findings?.length || 0}`);
+  logger.info(`[PDF Endpoint] Generating PDF for scan ${scanId}, URL: ${url}`);
+
   const pdfBuffer = await generatePDF(results, url);
-  
+
+  logger.info(`[PDF Endpoint] PDF generated successfully (${pdfBuffer.length} bytes)`);
+
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="security-report-${scanId}.pdf"`);
   res.send(pdfBuffer);

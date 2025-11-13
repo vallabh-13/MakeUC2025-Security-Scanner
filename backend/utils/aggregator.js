@@ -123,27 +123,27 @@ function deduplicateFindings(findings) {
  */
 function calculateSecurityScore(counts, total) {
   if (total === 0) return 100;
-  
-  // Weight different severity levels
+
+  // More balanced weight system - deductions should be reasonable
   const weights = {
-    critical: 30,  // Critical issues have highest impact
-    high: 20,      // High severity issues
-    medium: 10,    // Medium severity issues
-    low: 5,        // Low severity issues
-    info: 2        // Informational findings
+    critical: 15,  // Critical issues (max ~6 issues = 90 points deducted)
+    high: 10,      // High severity issues (max ~10 issues = 100 points)
+    medium: 5,     // Medium severity issues (max ~20 issues = 100 points)
+    low: 2,        // Low severity issues (max ~50 issues = 100 points)
+    info: 1        // Informational findings (max ~100 issues = 100 points)
   };
-  
+
   // Calculate total deductions
-  const deductions = 
+  const deductions =
     (counts.critical || 0) * weights.critical +
     (counts.high || 0) * weights.high +
     (counts.medium || 0) * weights.medium +
     (counts.low || 0) * weights.low +
     (counts.info || 0) * weights.info;
-  
+
   // Calculate score (never below 0)
   const score = Math.max(0, 100 - deductions);
-  
+
   return Math.round(score);
 }
 

@@ -259,16 +259,44 @@ import React, { useState, useEffect, useRef } from 'react';
       };
 
       const handleDownloadReport = async () => {
-        if (!scanResults) return;
+        if (!scanResults) {
+          console.error('[Frontend] No scan results available for PDF generation');
+          return;
+        }
 
         try {
+          console.log('[Frontend] Preparing PDF download...');
+          console.log('[Frontend] Scan results:', {
+            score: scanResults.score,
+            grade: scanResults.grade,
+            findingsCount: scanResults.findings?.length || 0,
+            hasDetectedTech: !!scanResults.detectedTechnology
+          });
+
           const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
           const targetUrl = scanResults.url || 'Unknown';
-          const response = await fetch(`${backendUrl}/api/report/${Date.now()}/pdf?results=${encodeURIComponent(JSON.stringify(scanResults))}&url=${encodeURIComponent(targetUrl)}`);
+
+          const resultsString = JSON.stringify(scanResults);
+          console.log('[Frontend] Serialized results size:', resultsString.length, 'characters');
+
+          const fullUrl = `${backendUrl}/api/report/${Date.now()}/pdf?results=${encodeURIComponent(resultsString)}&url=${encodeURIComponent(targetUrl)}`;
+          console.log('[Frontend] PDF request URL length:', fullUrl.length);
+
+          const response = await fetch(fullUrl);
+
+          console.log('[Frontend] PDF response status:', response.status);
+          console.log('[Frontend] PDF response headers:', Array.from(response.headers.entries()));
+
           if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Frontend] PDF download failed:', errorText);
             throw new Error('Failed to download report');
           }
+
           const blob = await response.blob();
+          console.log('[Frontend] PDF blob size:', blob.size, 'bytes');
+          console.log('[Frontend] PDF blob type:', blob.type);
+
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -277,6 +305,7 @@ import React, { useState, useEffect, useRef } from 'react';
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+
           toast.success('Report downloaded successfully!', {
             style: {
               background: '#000000',
@@ -285,6 +314,7 @@ import React, { useState, useEffect, useRef } from 'react';
             }
           });
         } catch (error: any) {
+          console.error('[Frontend] PDF download error:', error);
           toast.error(error.message || 'Failed to download report', {
             style: {
               background: '#000000',
