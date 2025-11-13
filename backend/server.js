@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -30,42 +31,16 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
-// Middleware
+// Use cors middleware properly
+app.use(cors({ origin: '*', credentials: false }));
 app.use(express.json());
 
-// Manual CORS handling for Lambda compatibility - apply BEFORE any routes
-app.use((req, res, next) => {
-  // Log for debugging
-  console.log('CORS middleware - setting headers');
-  console.log('Existing CORS header:', res.getHeader('Access-Control-Allow-Origin'));
-
-  // Remove any existing CORS headers first
-  res.removeHeader('Access-Control-Allow-Origin');
-  res.removeHeader('Access-Control-Allow-Methods');
-  res.removeHeader('Access-Control-Allow-Headers');
-
-  // Set them once
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  console.log('After setting:', res.getHeader('Access-Control-Allow-Origin'));
-
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// Rate limiting
+// Rate limiting - only for POST /api/scan (not for status polling)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5,
   message: { error: 'Too many scan requests. Please try again in 15 minutes.' }
 });
-
-app.use('/api/scan', limiter);
 
 // Store active scans
 const activeScans = new Map();
@@ -73,9 +48,9 @@ const activeScans = new Map();
 // Store scan progress for polling (in-memory cache)
 const scanProgressStore = new Map();
 
-// Concurrency limiter - prevent memory issues on Render free tier (0.5GB RAM)
+// Concurrency limiter - configurable based on available memory
 let runningScansCount = 0;
-const MAX_CONCURRENT_SCANS = 1; // Only 1 scan at a time on limited memory
+const MAX_CONCURRENT_SCANS = parseInt(process.env.MAX_CONCURRENT_SCANS) || 3; // Default: 3 concurrent scans for Lambda (1GB memory)
 
 // Root route
 app.get('/', (req, res) => {
@@ -138,8 +113,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Main scan endpoint
-app.post('/api/scan', asyncHandler(async (req, res) => {
+// Main scan endpoint - with rate limiting
+app.post('/api/scan', limiter, asyncHandler(async (req, res) => {
   const scanId = Date.now().toString();
 
   const { url, socketId } = req.body;
