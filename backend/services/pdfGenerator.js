@@ -104,8 +104,11 @@ async function generatePDF(scanResults, url) {
       // Reset Y position after header
       doc.y = 140;
 
+      console.log('[PDF] Header complete');
+
       // === EXECUTIVE SUMMARY ===
       addSection('Executive Summary', 0);
+      console.log('[PDF] Rendering executive summary...');
 
       // Summary boxes
       const summaryY = doc.y;
@@ -166,8 +169,11 @@ async function generatePDF(scanResults, url) {
 
       doc.y = summaryY + boxHeight + 30;
 
+      console.log('[PDF] Executive summary complete');
+
       // === SEVERITY BREAKDOWN ===
       addSection('Severity Breakdown');
+      console.log('[PDF] Rendering severity breakdown...');
 
       const severities = ['critical', 'high', 'medium', 'low', 'info'];
       const severityY = doc.y;
@@ -201,8 +207,11 @@ async function generatePDF(scanResults, url) {
 
       doc.y = severityY + severityBoxHeight + 25;
 
+      console.log('[PDF] Severity breakdown complete');
+
       // === DETECTED TECHNOLOGIES ===
       addSection('Detected Technologies');
+      console.log('[PDF] Rendering detected technologies...');
 
       doc.fontSize(10);
 
@@ -253,9 +262,14 @@ async function generatePDF(scanResults, url) {
 
       if (detectedTechnology && detectedTechnology.services && detectedTechnology.services.length > 0) {
         techDetected = true;
-        const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
-        doc.fillColor(colors.gray).text('Services: ', { continued: true });
-        doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
+        try {
+          const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
+          doc.fillColor(colors.gray).text('Services: ', { continued: true });
+          doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
+        } catch (err) {
+          console.error('[PDF] Error rendering services:', err);
+          doc.fillColor(colors.gray).text('Services: Found ' + detectedTechnology.services.length + ' open ports', { continued: false });
+        }
       }
 
       if (!techDetected) {
@@ -266,10 +280,14 @@ async function generatePDF(scanResults, url) {
 
       doc.moveDown(1.5);
 
+      console.log('[PDF] Technology section complete');
+
       // === SECURITY FINDINGS ===
       addSection('Security Findings');
 
-      if (findings.length === 0) {
+      console.log('[PDF] Rendering findings section, count:', findings ? findings.length : 0);
+
+      if (!findings || findings.length === 0) {
         // Removed checkmark emoji to fix encoding
         doc.fontSize(12).fillColor(colors.success).text('No security issues found!', {
           align: 'center'
@@ -278,8 +296,12 @@ async function generatePDF(scanResults, url) {
           align: 'center'
         });
         doc.moveDown();
+        console.log('[PDF] No findings to display');
       } else {
+        console.log('[PDF] Rendering', findings.length, 'findings');
         findings.forEach((finding, index) => {
+          try {
+            console.log('[PDF] Rendering finding', index + 1, ':', finding.title);
           // Check if we need a new page
           if (doc.y > 650) doc.addPage();
 
@@ -364,11 +386,18 @@ async function generatePDF(scanResults, url) {
           }
 
           doc.moveDown(1);
+          } catch (err) {
+            console.error('[PDF] Error rendering finding', index + 1, ':', err);
+            // Continue with next finding
+          }
         });
+        console.log('[PDF] All findings rendered successfully');
       }
 
       // === FOOTER ===
+      console.log('[PDF] Adding footer...');
       const pageCount = doc.bufferedPageRange().count;
+      console.log('[PDF] Total pages:', pageCount);
       for (let i = 0; i < pageCount; i++) {
         doc.switchToPage(i);
         doc.fontSize(8).fillColor(colors.gray).text(
@@ -379,10 +408,13 @@ async function generatePDF(scanResults, url) {
         );
       }
 
+      console.log('[PDF] Footer complete, finalizing document...');
       doc.end();
+      console.log('[PDF] doc.end() called, waiting for buffers...');
 
     } catch (error) {
-      console.error('PDF generation failed:', error);
+      console.error('[PDF] CRITICAL ERROR in PDF generation:', error);
+      console.error('[PDF] Error stack:', error.stack);
       reject(new Error(`Failed to generate PDF: ${error.message}`));
     }
   });
