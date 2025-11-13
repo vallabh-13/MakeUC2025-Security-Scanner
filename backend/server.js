@@ -33,11 +33,23 @@ const io = socketIo(server, {
 // Middleware
 app.use(express.json());
 
-// Manual CORS handling for Lambda compatibility
+// Manual CORS handling for Lambda compatibility - apply BEFORE any routes
 app.use((req, res, next) => {
+  // Log for debugging
+  console.log('CORS middleware - setting headers');
+  console.log('Existing CORS header:', res.getHeader('Access-Control-Allow-Origin'));
+
+  // Remove any existing CORS headers first
+  res.removeHeader('Access-Control-Allow-Origin');
+  res.removeHeader('Access-Control-Allow-Methods');
+  res.removeHeader('Access-Control-Allow-Headers');
+
+  // Set them once
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  console.log('After setting:', res.getHeader('Access-Control-Allow-Origin'));
 
   // Handle preflight
   if (req.method === 'OPTIONS') {

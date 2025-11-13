@@ -10,7 +10,6 @@
     "logs": "tail -f logs/combined.log"
   },
   "dependencies": {
-    "@vendia/serverless-express": "^4.12.6",
     "axios": "^1.13.2",
     "cheerio": "^1.1.2",
     "dotenv": "^17.2.3",

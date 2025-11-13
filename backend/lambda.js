@@ -1,21 +1,59 @@
-const serverlessExpress = require('@vendia/serverless-express');
+// Manual Lambda handler without serverless-express to avoid CORS duplication
 const { app } = require('./server');
+const http = require('http');
 
-// Configure serverless-express
-const handler = serverlessExpress({
-  app,
-  respondWithErrors: true,
-  // Disable automatic CORS handling
-  binaryMimeTypes: []
-});
+// Create HTTP server
+const server = http.createServer(app);
+
+// Start server on a local port
+const PORT = 3000;
+server.listen(PORT);
 
 exports.handler = async (event, context) => {
-  // Remove any automatic CORS headers from event
-  if (event.headers) {
-    delete event.headers['access-control-allow-origin'];
-    delete event.headers['access-control-allow-methods'];
-    delete event.headers['access-control-allow-headers'];
-  }
+  // Convert Lambda event to HTTP request format
+  const { httpMethod, path, queryStringParameters, headers, body, isBase64Encoded } = event;
 
-  return handler(event, context);
+  // Make HTTP request to local server
+  const options = {
+    hostname: 'localhost',
+    port: PORT,
+    path: path + (queryStringParameters ? '?' + new URLSearchParams(queryStringParameters).toString() : ''),
+    method: httpMethod,
+    headers: headers || {}
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        // Convert HTTP response to Lambda response format
+        const response = {
+          statusCode: res.statusCode,
+          headers: res.headers,
+          body: data,
+          isBase64Encoded: false
+        };
+
+        // Ensure only ONE CORS header
+        if (response.headers) {
+          // Remove duplicate CORS headers
+          const corsValue = response.headers['access-control-allow-origin'];
+          if (Array.isArray(corsValue)) {
+            response.headers['access-control-allow-origin'] = corsValue[0];
+          }
+        }
+
+        resolve(response);
+      });
+    });
+
+    req.on('error', reject);
+
+    if (body) {
+      req.write(isBase64Encoded ? Buffer.from(body, 'base64').toString() : body);
+    }
+
+    req.end();
+  });
 };
