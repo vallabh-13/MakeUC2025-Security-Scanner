@@ -19,6 +19,10 @@ const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy setting - REQUIRED for Lambda/API Gateway and rate limiting
+// This allows Express to trust X-Forwarded-* headers from proxies
+app.set('trust proxy', true);
+
 // Socket.IO configuration (optional - fallback support)
 const io = socketIo(server, {
   cors: {

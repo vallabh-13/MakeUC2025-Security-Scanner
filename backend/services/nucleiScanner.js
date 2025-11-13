@@ -13,10 +13,29 @@ async function scanWithNuclei(url) {
   const findings = [];
 
   try {
+    // First check if Nuclei is installed
+    try {
+      await execPromise('nuclei -version', { timeout: 5000 });
+    } catch (versionError) {
+      console.error('Nuclei is not installed or not in PATH');
+      return {
+        findings: [],
+        error: 'Nuclei scanner is not available. Other security scans completed successfully.'
+      };
+    }
+
     // Create temporary directories for Nuclei in /tmp (Lambda-compatible)
     const os = require('os');
     const tmpDir = os.tmpdir();
     const outputFile = path.join(tmpDir, `nuclei-${Date.now()}.json`);
+    const nucleiConfigDir = path.join(tmpDir, '.nuclei-config');
+
+    // Ensure temp directories exist and are writable
+    try {
+      await fs.mkdir(nucleiConfigDir, { recursive: true });
+    } catch (mkdirError) {
+      console.warn('Could not create Nuclei config directory:', mkdirError.message);
+    }
 
     // Nuclei command with Lambda-compatible settings:
     // -u: Target URL
@@ -28,13 +47,14 @@ async function scanWithNuclei(url) {
     // -silent: Reduce console noise
     // -duc: Disable update check (prevents config file creation)
     // -nc: No color output
-    // No -config flag - let it fail gracefully
-    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc`;
+    // -disable-update-check: Extra safety to prevent updates
+    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
 
     console.log('Running Nuclei scan (Lambda mode - simplified config)');
+    console.log(`Nuclei command: ${command}`);
 
     // Execute Nuclei with HOME set to /tmp for Lambda compatibility
-    await execPromise(command, {
+    const { stdout, stderr } = await execPromise(command, {
       timeout: 300000, // 5 minutes max
       maxBuffer: 20 * 1024 * 1024, // 20MB buffer
       env: {
@@ -42,9 +62,17 @@ async function scanWithNuclei(url) {
         HOME: tmpDir, // Force Nuclei to use /tmp for all config/cache
         TMPDIR: tmpDir,
         TEMP: tmpDir,
-        TMP: tmpDir
+        TMP: tmpDir,
+        NUCLEI_CONFIG_DIR: nucleiConfigDir
       }
     });
+
+    if (stderr) {
+      console.warn('Nuclei stderr output:', stderr);
+    }
+    if (stdout) {
+      console.log('Nuclei stdout output:', stdout);
+    }
     
     // Read results from output file
     let output = '';
@@ -248,17 +276,45 @@ async function initializeNucleiTemplates() {
   try {
     console.log('Checking Nuclei templates...');
 
+    // First check if Nuclei is installed
+    try {
+      const { stdout } = await execPromise('nuclei -version', { timeout: 5000 });
+      console.log('Nuclei version:', stdout.trim());
+    } catch (versionError) {
+      console.warn('Nuclei is not installed, skipping template initialization');
+      return { success: false, error: 'Nuclei not installed' };
+    }
+
+    // Try to update templates in /tmp for Lambda compatibility
+    const os = require('os');
+    const tmpDir = os.tmpdir();
+    const nucleiConfigDir = path.join(tmpDir, '.nuclei-config');
+
+    try {
+      await fs.mkdir(nucleiConfigDir, { recursive: true });
+    } catch (mkdirError) {
+      console.warn('Could not create Nuclei config directory:', mkdirError.message);
+    }
+
     // Try to update templates, but don't fail if it doesn't work
-    await execPromise('nuclei -update-templates -silent', {
-      timeout: 120000 // 2 minutes max
+    await execPromise('nuclei -update-templates -silent -duc -disable-update-check', {
+      timeout: 120000, // 2 minutes max
+      env: {
+        ...process.env,
+        HOME: tmpDir,
+        TMPDIR: tmpDir,
+        TEMP: tmpDir,
+        TMP: tmpDir,
+        NUCLEI_CONFIG_DIR: nucleiConfigDir
+      }
     });
 
     console.log('Nuclei templates initialized successfully');
     return { success: true };
   } catch (error) {
-    // Log warning but don't fail - templates will download on first scan
+    // Log warning but don't fail - Nuclei will work with built-in templates or download on first scan
     console.warn('Warning: Could not pre-download Nuclei templates:', error.message);
-    console.warn('Templates will be downloaded on first scan');
+    console.warn('Nuclei will use built-in templates or download on first scan');
     return { success: false, error: error.message };
   }
 }

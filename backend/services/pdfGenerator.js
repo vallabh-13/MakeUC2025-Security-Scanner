@@ -2,6 +2,13 @@ const PDFDocument = require('pdfkit');
 
 /**
  * Generate PDF report from scan results
+ *
+ * CRITICAL FIX NOTES:
+ * - Always reset fillColor() to darkGray after any fill() operations on boxes/shapes
+ * - Reset fillColor() after addPage() to prevent white-on-white text
+ * - Reset font and fontSize after section headers
+ * - This ensures all text remains visible and prevents blank PDF pages
+ *
  * @param {Object} scanResults - Complete scan results
  * @param {string} url - Target URL that was scanned
  * @returns {Buffer} - PDF file as buffer
@@ -66,7 +73,12 @@ async function generatePDF(scanResults, url) {
 
       // Helper function to add a section with padding
       const addSection = (title, topMargin = 20) => {
-        if (doc.y > 700) doc.addPage();
+        if (doc.y > 700) {
+          doc.addPage();
+          // Reset font and color after new page
+          doc.font('Helvetica');
+          doc.fillColor(colors.darkGray);
+        }
         doc.moveDown(topMargin / 12);
         doc.font('Helvetica-Bold').fontSize(18).fillColor(colors.primary).text(title, 50, doc.y, {
           align: 'center',
@@ -75,6 +87,8 @@ async function generatePDF(scanResults, url) {
           continued: false
         });
         doc.moveDown(0.8);
+        // Reset font, font size, and fill color to dark after each section title
+        doc.font('Helvetica').fontSize(10).fillColor(colors.darkGray);
       };
 
       // === HEADER ===
@@ -174,6 +188,9 @@ async function generatePDF(scanResults, url) {
 
       doc.y = summaryY + boxHeight + 30;
 
+      // Reset color after summary boxes
+      doc.fillColor(colors.darkGray);
+
       console.error('[PDF] Executive summary complete');
 
       // === SEVERITY BREAKDOWN ===
@@ -211,6 +228,9 @@ async function generatePDF(scanResults, url) {
       });
 
       doc.y = severityY + severityBoxHeight + 25;
+
+      // Reset color after severity boxes
+      doc.fillColor(colors.darkGray);
 
       console.error('[PDF] Severity breakdown complete');
 
@@ -308,7 +328,11 @@ async function generatePDF(scanResults, url) {
           try {
             console.error('[PDF] Rendering finding', index + 1, ':', finding.title);
           // Check if we need a new page
-          if (doc.y > 650) doc.addPage();
+          if (doc.y > 650) {
+            doc.addPage();
+            // Reset font and color after new page
+            doc.font('Helvetica').fillColor(colors.darkGray);
+          }
 
           const findingY = doc.y;
           const findingColor = colors[finding.severity] || colors.gray;
@@ -320,6 +344,9 @@ async function generatePDF(scanResults, url) {
           // Finding box
           doc.rect(55, findingY, doc.page.width - 110, findingHeight)
             .fillAndStroke('#ffffff', colors.lightGray);
+
+          // Reset fill color to dark after drawing box
+          doc.fillColor(colors.darkGray);
 
           // Finding number and title
           doc.fontSize(12).fillColor(colors.darkGray)
@@ -339,6 +366,9 @@ async function generatePDF(scanResults, url) {
               continued: false
             });
 
+          // Reset fill color to dark after severity badge
+          doc.fillColor(colors.darkGray);
+
           // Description
           doc.fontSize(9).fillColor(colors.darkGray)
             .text(finding.description, 65, findingY + 35, {
@@ -350,7 +380,11 @@ async function generatePDF(scanResults, url) {
 
           // Recommendation
           if (finding.recommendation) {
-            if (doc.y > 700) doc.addPage();
+            if (doc.y > 700) {
+              doc.addPage();
+              // Reset font and color after new page
+              doc.font('Helvetica').fillColor(colors.darkGray);
+            }
 
             const recY = doc.y;
             const recHeight = 50;
@@ -369,6 +403,9 @@ async function generatePDF(scanResults, url) {
               });
 
             doc.y = recY + recHeight + 5;
+
+            // Reset fill color to dark after recommendation box
+            doc.fillColor(colors.darkGray);
           }
 
           // Metadata
@@ -380,7 +417,11 @@ async function generatePDF(scanResults, url) {
           if (finding.component) metaItems.push(`Component: ${finding.component} ${finding.componentVersion || ''}`);
 
           if (metaItems.length > 0) {
-            if (doc.y > 720) doc.addPage();
+            if (doc.y > 720) {
+              doc.addPage();
+              // Reset font and color after new page
+              doc.font('Helvetica').fillColor(colors.darkGray);
+            }
 
             doc.fontSize(8).fillColor(colors.gray)
               .text(metaItems.join(' | '), 55, doc.y, {
