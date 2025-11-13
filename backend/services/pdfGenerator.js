@@ -9,11 +9,12 @@ const PDFDocument = require('pdfkit');
 async function generatePDF(scanResults, url) {
   return new Promise((resolve, reject) => {
     try {
-      console.log('[PDF] Starting PDF generation for URL:', url);
-      console.log('[PDF] Scan results keys:', Object.keys(scanResults));
-      console.log('[PDF] Findings count:', scanResults.findings?.length || 0);
-      console.log('[PDF] Score:', scanResults.score);
-      console.log('[PDF] Grade:', scanResults.grade);
+      // Use console.error to ensure logs appear in CloudWatch
+      console.error('[PDF] Starting PDF generation for URL:', url);
+      console.error('[PDF] Scan results keys:', Object.keys(scanResults));
+      console.error('[PDF] Findings count:', scanResults.findings?.length || 0);
+      console.error('[PDF] Score:', scanResults.score);
+      console.error('[PDF] Grade:', scanResults.grade);
 
       const doc = new PDFDocument({
         size: 'A4',
@@ -25,7 +26,7 @@ async function generatePDF(scanResults, url) {
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => {
         const pdfBuffer = Buffer.concat(buffers);
-        console.log('[PDF] PDF generation complete. Size:', pdfBuffer.length, 'bytes');
+        console.error('[PDF] PDF generation complete. Size:', pdfBuffer.length, 'bytes');
         resolve(pdfBuffer);
       });
       doc.on('error', (err) => {
@@ -104,11 +105,11 @@ async function generatePDF(scanResults, url) {
       // Reset Y position after header
       doc.y = 140;
 
-      console.log('[PDF] Header complete');
+      console.error('[PDF] Header complete');
 
       // === EXECUTIVE SUMMARY ===
       addSection('Executive Summary', 0);
-      console.log('[PDF] Rendering executive summary...');
+      console.error('[PDF] Rendering executive summary...');
 
       // Summary boxes
       const summaryY = doc.y;
@@ -169,11 +170,11 @@ async function generatePDF(scanResults, url) {
 
       doc.y = summaryY + boxHeight + 30;
 
-      console.log('[PDF] Executive summary complete');
+      console.error('[PDF] Executive summary complete');
 
       // === SEVERITY BREAKDOWN ===
       addSection('Severity Breakdown');
-      console.log('[PDF] Rendering severity breakdown...');
+      console.error('[PDF] Rendering severity breakdown...');
 
       const severities = ['critical', 'high', 'medium', 'low', 'info'];
       const severityY = doc.y;
@@ -207,11 +208,11 @@ async function generatePDF(scanResults, url) {
 
       doc.y = severityY + severityBoxHeight + 25;
 
-      console.log('[PDF] Severity breakdown complete');
+      console.error('[PDF] Severity breakdown complete');
 
       // === DETECTED TECHNOLOGIES ===
       addSection('Detected Technologies');
-      console.log('[PDF] Rendering detected technologies...');
+      console.error('[PDF] Rendering detected technologies...');
 
       doc.fontSize(10);
 
@@ -280,12 +281,12 @@ async function generatePDF(scanResults, url) {
 
       doc.moveDown(1.5);
 
-      console.log('[PDF] Technology section complete');
+      console.error('[PDF] Technology section complete');
 
       // === SECURITY FINDINGS ===
       addSection('Security Findings');
 
-      console.log('[PDF] Rendering findings section, count:', findings ? findings.length : 0);
+      console.error('[PDF] Rendering findings section, count:', findings ? findings.length : 0);
 
       if (!findings || findings.length === 0) {
         // Removed checkmark emoji to fix encoding
@@ -296,12 +297,12 @@ async function generatePDF(scanResults, url) {
           align: 'center'
         });
         doc.moveDown();
-        console.log('[PDF] No findings to display');
+        console.error('[PDF] No findings to display');
       } else {
-        console.log('[PDF] Rendering', findings.length, 'findings');
+        console.error('[PDF] Rendering', findings.length, 'findings');
         findings.forEach((finding, index) => {
           try {
-            console.log('[PDF] Rendering finding', index + 1, ':', finding.title);
+            console.error('[PDF] Rendering finding', index + 1, ':', finding.title);
           // Check if we need a new page
           if (doc.y > 650) doc.addPage();
 
@@ -391,13 +392,13 @@ async function generatePDF(scanResults, url) {
             // Continue with next finding
           }
         });
-        console.log('[PDF] All findings rendered successfully');
+        console.error('[PDF] All findings rendered successfully');
       }
 
       // === FOOTER ===
-      console.log('[PDF] Adding footer...');
+      console.error('[PDF] Adding footer...');
       const pageCount = doc.bufferedPageRange().count;
-      console.log('[PDF] Total pages:', pageCount);
+      console.error('[PDF] Total pages:', pageCount);
       for (let i = 0; i < pageCount; i++) {
         doc.switchToPage(i);
         doc.fontSize(8).fillColor(colors.gray).text(
@@ -408,9 +409,9 @@ async function generatePDF(scanResults, url) {
         );
       }
 
-      console.log('[PDF] Footer complete, finalizing document...');
+      console.error('[PDF] Footer complete, finalizing document...');
       doc.end();
-      console.log('[PDF] doc.end() called, waiting for buffers...');
+      console.error('[PDF] doc.end() called, waiting for buffers...');
 
     } catch (error) {
       console.error('[PDF] CRITICAL ERROR in PDF generation:', error);
