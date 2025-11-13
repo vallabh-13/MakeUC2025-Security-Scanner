@@ -1,6 +1,7 @@
 const { exec } = require('child_process');
 const util = require('util');
 const xml2js = require('xml2js');
+const net = require('net');
 const execPromise = util.promisify(exec);
 
 /**
@@ -45,27 +46,99 @@ async function fallbackPortCheck(hostname) {
   const findings = [];
   const detectedServices = [];
 
+  console.log('Nmap unavailable - performing basic TCP port checks...');
+
   // Common ports to check
   const commonPorts = [
     { port: 80, service: 'http', name: 'HTTP' },
     { port: 443, service: 'https', name: 'HTTPS' },
-    { port: 8080, service: 'http-alt', name: 'HTTP Alt' },
-    { port: 8443, service: 'https-alt', name: 'HTTPS Alt' },
+    { port: 8080, service: 'http-alt', name: 'HTTP Alternative' },
+    { port: 8443, service: 'https-alt', name: 'HTTPS Alternative' },
     { port: 22, service: 'ssh', name: 'SSH' },
     { port: 21, service: 'ftp', name: 'FTP' },
     { port: 3306, service: 'mysql', name: 'MySQL' },
-    { port: 5432, service: 'postgresql', name: 'PostgreSQL' }
+    { port: 5432, service: 'postgresql', name: 'PostgreSQL' },
+    { port: 3389, service: 'rdp', name: 'RDP' },
+    { port: 6379, service: 'redis', name: 'Redis' }
   ];
 
-  findings.push({
-    severity: 'info',
-    title: 'Port Scan Limited',
-    description: 'Full port scanning requires elevated privileges. Basic connectivity check performed instead.',
-    recommendation: 'For comprehensive port scanning, run Nmap with root/administrator privileges or use a dedicated security scanner.'
+  // Test each port
+  const portTests = commonPorts.map(portInfo => testPort(hostname, portInfo.port, portInfo.service, portInfo.name));
+  const results = await Promise.all(portTests);
+
+  // Process results
+  results.forEach(result => {
+    if (result.open) {
+      detectedServices.push({
+        port: result.port,
+        protocol: 'tcp',
+        service: result.service,
+        product: result.name,
+        version: 'unknown'
+      });
+
+      // Check for dangerous ports
+      const dangerousPorts = [21, 22, 23, 3306, 5432, 3389, 6379];
+      if (dangerousPorts.includes(result.port)) {
+        const severity = [23, 3389, 6379].includes(result.port) ? 'critical' : 'high';
+        findings.push({
+          severity: severity,
+          title: `Exposed ${result.name} on Port ${result.port}`,
+          description: `${result.name} service is exposed to the internet, which may pose security risks.`,
+          port: result.port,
+          service: result.service,
+          cwe: 'CWE-16',
+          owasp: 'A05:2021 - Security Misconfiguration',
+          recommendation: `Restrict port ${result.port} access using firewall rules. Only allow connections from trusted IP addresses or VPN.`
+        });
+      }
+    }
   });
 
-  console.log('Nmap unavailable - basic scan results returned');
+  // Add info about scan method
+  findings.push({
+    severity: 'info',
+    title: 'Basic Port Scan Performed',
+    description: `Scanned ${commonPorts.length} common ports using TCP connection test. Found ${detectedServices.length} open port(s).`,
+    recommendation: 'This is a basic scan. For comprehensive vulnerability assessment, use nmap with appropriate privileges.'
+  });
+
+  console.log(`Basic port scan complete: ${detectedServices.length} open ports found`);
   return { findings, detectedServices };
+}
+
+/**
+ * Test if a specific port is open using TCP connection
+ * @param {string} hostname - Target hostname
+ * @param {number} port - Port number to test
+ * @param {string} service - Service name
+ * @param {string} name - Human readable name
+ * @returns {Promise<Object>} - Test result
+ */
+function testPort(hostname, port, service, name) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const timeout = 3000; // 3 second timeout
+
+    socket.setTimeout(timeout);
+
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve({ open: true, port, service, name });
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ open: false, port, service, name });
+    });
+
+    socket.on('error', () => {
+      socket.destroy();
+      resolve({ open: false, port, service, name });
+    });
+
+    socket.connect(port, hostname);
+  });
 }
 
 /**

@@ -32,6 +32,9 @@ async function detectSoftware(url) {
 
     if (headers["server"]) {
       detected.webServer = parseServerHeader(headers["server"]);
+    } else {
+      // Try to infer server from other indicators
+      detected.webServer = inferServerFromContext(headers, html);
     }
 
     if (headers["x-powered-by"]) {
@@ -132,6 +135,84 @@ function isVulnerableWordPress(version) {
 function isVulnerableJQuery(version) {
   const n = parseFloat(version);
   return n < 3.5;
+}
+
+/**
+ * Infer web server from context clues when Server header is missing
+ * @param {Object} headers - Response headers
+ * @param {string} html - HTML content
+ * @returns {Object} - Inferred server info
+ */
+function inferServerFromContext(headers, html) {
+  // Check for common cloud platform indicators
+  if (headers["x-amz-request-id"] || headers["x-amzn-requestid"]) {
+    return {
+      name: "Amazon CloudFront/ALB",
+      version: "unknown",
+      raw: "Inferred from AWS headers"
+    };
+  }
+
+  if (headers["cf-ray"] || headers["cf-cache-status"]) {
+    return {
+      name: "Cloudflare",
+      version: "unknown",
+      raw: "Inferred from Cloudflare headers"
+    };
+  }
+
+  if (headers["x-azure-ref"]) {
+    return {
+      name: "Microsoft Azure",
+      version: "unknown",
+      raw: "Inferred from Azure headers"
+    };
+  }
+
+  if (headers["x-goog-generation"]) {
+    return {
+      name: "Google Cloud",
+      version: "unknown",
+      raw: "Inferred from GCP headers"
+    };
+  }
+
+  if (headers["x-vercel-id"] || headers["x-vercel-cache"]) {
+    return {
+      name: "Vercel",
+      version: "unknown",
+      raw: "Inferred from Vercel headers"
+    };
+  }
+
+  if (headers["x-netlify-id"]) {
+    return {
+      name: "Netlify",
+      version: "unknown",
+      raw: "Inferred from Netlify headers"
+    };
+  }
+
+  // Check powered-by for server info
+  if (headers["x-powered-by"]) {
+    const poweredBy = headers["x-powered-by"].toLowerCase();
+    if (poweredBy.includes("express")) {
+      return { name: "Node.js/Express", version: "unknown", raw: headers["x-powered-by"] };
+    }
+    if (poweredBy.includes("php")) {
+      return { name: "PHP", version: poweredBy.match(/[\d\.]+/)?.[0] || "unknown", raw: headers["x-powered-by"] };
+    }
+    if (poweredBy.includes("asp.net")) {
+      return { name: "IIS/ASP.NET", version: "unknown", raw: headers["x-powered-by"] };
+    }
+  }
+
+  // Default fallback
+  return {
+    name: "Web Server",
+    version: "hidden",
+    raw: "Server header not disclosed (security best practice)"
+  };
 }
 
 module.exports = { detectSoftware };

@@ -192,7 +192,11 @@ async function generatePDF(scanResults, url) {
 
         if (detectedTechnology.webServer) {
           doc.fillColor(colors.gray).text('Web Server: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(`${detectedTechnology.webServer.name} ${detectedTechnology.webServer.version}`, {
+          const serverName = detectedTechnology.webServer.name || 'Unknown';
+          const serverVersion = detectedTechnology.webServer.version && detectedTechnology.webServer.version !== 'unknown'
+            ? detectedTechnology.webServer.version
+            : '';
+          doc.fillColor(colors.darkGray).text(`${serverName} ${serverVersion}`.trim(), {
             continued: false
           });
         }
