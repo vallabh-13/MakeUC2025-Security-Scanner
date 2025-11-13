@@ -88,7 +88,7 @@ import React, { useState, useEffect, useRef } from 'react';
       const [scanProgress, setScanProgress] = useState(0);
       const [scanMessage, setScanMessage] = useState('');
       const [currentScanId, setCurrentScanId] = useState<string | null>(null);
-      const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+      const pollingIntervalRef = useRef<number | null>(null);
       const lastStepRef = useRef<string>('');
 
       useEffect(() => {
