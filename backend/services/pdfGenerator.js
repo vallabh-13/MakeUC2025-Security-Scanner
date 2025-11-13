@@ -33,7 +33,7 @@ async function generatePDF(scanResults, url) {
         high: '#ea580c',
         medium: '#ca8a04',
         low: '#2563eb',
-        info: '#64748b',
+        info: '#0891b2', // Changed from gray to cyan for better visibility
         success: '#16a34a',
         gray: '#6b7280',
         lightGray: '#e5e7eb',
@@ -185,57 +185,69 @@ async function generatePDF(scanResults, url) {
       doc.y = severityY + severityBoxHeight + 25;
 
       // === DETECTED TECHNOLOGIES ===
-      if (detectedTechnology && Object.keys(detectedTechnology).some(key => detectedTechnology[key] && (Array.isArray(detectedTechnology[key]) ? detectedTechnology[key].length > 0 : true))) {
-        addSection('Detected Technologies');
+      addSection('Detected Technologies');
 
-        doc.fontSize(10);
+      doc.fontSize(10);
 
-        if (detectedTechnology.webServer) {
-          doc.fillColor(colors.gray).text('Web Server: ', { continued: true });
-          const serverName = detectedTechnology.webServer.name || 'Unknown';
-          const serverVersion = detectedTechnology.webServer.version && detectedTechnology.webServer.version !== 'unknown'
-            ? detectedTechnology.webServer.version
-            : '';
-          doc.fillColor(colors.darkGray).text(`${serverName} ${serverVersion}`.trim(), {
-            continued: false
-          });
-        }
+      let techDetected = false;
 
-        if (detectedTechnology.cms) {
-          const cmsName = typeof detectedTechnology.cms === 'string' ? detectedTechnology.cms : detectedTechnology.cms.name;
-          const cmsVersion = typeof detectedTechnology.cms === 'object' ? detectedTechnology.cms.version || '' : '';
-          doc.fillColor(colors.gray).text('CMS: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(`${cmsName} ${cmsVersion}`, { continued: false });
-        }
-
-        if (detectedTechnology.backend && detectedTechnology.backend.length > 0) {
-          const backendStr = Array.isArray(detectedTechnology.backend)
-            ? detectedTechnology.backend.map(b => typeof b === 'string' ? b : `${b.name || ''} ${b.version || ''}`.trim()).join(', ')
-            : detectedTechnology.backend;
-          doc.fillColor(colors.gray).text('Backend: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(backendStr, { continued: false });
-        }
-
-        if (detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0) {
-          const frameworkStr = detectedTechnology.frameworks.map(f => f.name || f).join(', ');
-          doc.fillColor(colors.gray).text('Frameworks: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(frameworkStr, { continued: false });
-        }
-
-        if (detectedTechnology.libraries && detectedTechnology.libraries.length > 0) {
-          const libStr = detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ');
-          doc.fillColor(colors.gray).text('Libraries: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(libStr, { continued: false });
-        }
-
-        if (detectedTechnology.services && detectedTechnology.services.length > 0) {
-          const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
-          doc.fillColor(colors.gray).text('Services: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
-        }
-
-        doc.moveDown(1.5);
+      if (detectedTechnology && detectedTechnology.webServer) {
+        techDetected = true;
+        doc.fillColor(colors.gray).text('Web Server: ', { continued: true });
+        const serverName = detectedTechnology.webServer.name || 'Unknown';
+        const serverVersion = detectedTechnology.webServer.version && detectedTechnology.webServer.version !== 'unknown' && detectedTechnology.webServer.version !== 'hidden'
+          ? detectedTechnology.webServer.version
+          : '';
+        doc.fillColor(colors.darkGray).text(`${serverName} ${serverVersion}`.trim(), {
+          continued: false
+        });
       }
+
+      if (detectedTechnology && detectedTechnology.cms) {
+        techDetected = true;
+        const cmsName = typeof detectedTechnology.cms === 'string' ? detectedTechnology.cms : detectedTechnology.cms.name;
+        const cmsVersion = typeof detectedTechnology.cms === 'object' ? detectedTechnology.cms.version || '' : '';
+        doc.fillColor(colors.gray).text('CMS: ', { continued: true });
+        doc.fillColor(colors.darkGray).text(`${cmsName} ${cmsVersion}`.trim(), { continued: false });
+      }
+
+      if (detectedTechnology && detectedTechnology.backend && detectedTechnology.backend.length > 0) {
+        techDetected = true;
+        const backendStr = Array.isArray(detectedTechnology.backend)
+          ? detectedTechnology.backend.map(b => typeof b === 'string' ? b : `${b.name || ''} ${b.version || ''}`.trim()).join(', ')
+          : detectedTechnology.backend;
+        doc.fillColor(colors.gray).text('Backend: ', { continued: true });
+        doc.fillColor(colors.darkGray).text(backendStr, { continued: false });
+      }
+
+      if (detectedTechnology && detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0) {
+        techDetected = true;
+        const frameworkStr = detectedTechnology.frameworks.map(f => f.name || f).join(', ');
+        doc.fillColor(colors.gray).text('Frameworks: ', { continued: true });
+        doc.fillColor(colors.darkGray).text(frameworkStr, { continued: false });
+      }
+
+      if (detectedTechnology && detectedTechnology.libraries && detectedTechnology.libraries.length > 0) {
+        techDetected = true;
+        const libStr = detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ');
+        doc.fillColor(colors.gray).text('Libraries: ', { continued: true });
+        doc.fillColor(colors.darkGray).text(libStr, { continued: false });
+      }
+
+      if (detectedTechnology && detectedTechnology.services && detectedTechnology.services.length > 0) {
+        techDetected = true;
+        const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
+        doc.fillColor(colors.gray).text('Services: ', { continued: true });
+        doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
+      }
+
+      if (!techDetected) {
+        doc.fillColor(colors.gray).text('No specific technologies detected. The server may be hiding version information for security reasons.', {
+          align: 'left'
+        });
+      }
+
+      doc.moveDown(1.5);
 
       // === SECURITY FINDINGS ===
       addSection('Security Findings');

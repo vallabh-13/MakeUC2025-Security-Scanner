@@ -168,9 +168,17 @@ No changes needed unless you change the backend port.
 
 ## Deployment
 
-This project is configured for deployment on:
-- **Frontend**: Netlify (see `frontend/netlify.toml`)
-- **Backend**: Render (see `render.yaml` and `Dockerfile`)
+### Current Production Deployment
+- **Frontend**: Netlify - https://securityscanner.netlify.app
+- **Backend**: AWS Lambda (Docker/ECR) - https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/
+- **Planned Domain**: securescan.tech
+
+### Recent Updates (Nov 13, 2025)
+Fixed critical bugs:
+1. **Software detection failing** - Fixed undefined `html` variable causing blank PDFs
+2. **Vulnerable components not detected** - Fixed property name mismatch (`comp.component` vs `comp.name`)
+3. **Info severity color** - Changed from gray to cyan for better visibility in PDF reports
+4. **Technology detection** - Always shows "Detected Technologies" section with helpful message when empty
 
 For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
 
@@ -213,3 +221,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Frontend README**: [frontend/README.md](./frontend/README.md)
 - **Backend README**: [backend/README.md](./backend/README.md)
 - **Deployment Guide**: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
+
+
+
+---
+
+
+
+
+

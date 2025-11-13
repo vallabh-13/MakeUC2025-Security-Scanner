@@ -25,13 +25,13 @@ function aggregateResults(sslResults, nmapResults, nucleiResults, detectedSoftwa
     detectedSoftware.vulnerableComponents.forEach(comp => {
       allFindings.push({
         severity: 'high',
-        title: `Vulnerable ${comp.name} ${comp.version}`,
+        title: `Vulnerable ${comp.component} ${comp.version}`,
         description: comp.issue,
-        component: comp.name,
+        component: comp.component,
         componentVersion: comp.version,
         cwe: 'CWE-1104',
         owasp: 'A06:2021 - Vulnerable and Outdated Components',
-        recommendation: `Update ${comp.name} to the latest secure version`
+        recommendation: `Update ${comp.component} to the latest secure version`
       });
     });
   }

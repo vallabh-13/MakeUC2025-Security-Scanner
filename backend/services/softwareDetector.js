@@ -25,6 +25,8 @@ async function detectSoftware(url) {
     });
 
     const headers = response.headers;
+    const html = response.data; // Move this up so it's available for inferServerFromContext
+    const $ = cheerio.load(html);
 
     // ----------------------
     // HEADER-BASED DETECTION
@@ -54,9 +56,6 @@ async function detectSoftware(url) {
     // ----------------------
     // HTML CONTENT SCANNING
     // ----------------------
-
-    const html = response.data;
-    const $ = cheerio.load(html);
 
     // Script tag analysis
     $("script[src]").each((_, el) => {
