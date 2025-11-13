@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
@@ -20,25 +19,36 @@ const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
 const app = express();
 const server = http.createServer(app);
 
-// CORS configuration - allow all origins
-const corsOptions = {
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  credentials: false,
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-
+// Socket.IO configuration (optional - fallback support)
 const io = socketIo(server, {
-  cors: corsOptions,
-  pingTimeout: 60000, // 60 seconds - how long to wait for pong response
-  pingInterval: 25000, // 25 seconds - how often to ping
-  connectTimeout: 45000, // 45 seconds - connection timeout
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS']
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 45000,
   transports: ['websocket', 'polling']
 });
 
 // Middleware
-app.use(helmet());
-app.use(cors(corsOptions));
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Disable to avoid CORS conflicts
+}));
+
+// Manual CORS handling for Lambda compatibility
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Rate limiting
