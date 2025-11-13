@@ -8,8 +8,8 @@
   # Environment variables for build
   [build.environment]
     NODE_VERSION = "20"
-    # Backend deployed to Render
-    VITE_BACKEND_URL = "https://security-scanner-backend.onrender.com"
+    # Backend deployed to AWS Lambda
+    VITE_BACKEND_URL = "https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws"
 
 # Redirect rules for SPA (Single Page Application)
 [[redirects]]
