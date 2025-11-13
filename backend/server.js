@@ -31,16 +31,18 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
-// Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: false, // Disable to avoid CORS conflicts
-}));
-
-// Manual CORS handling for Lambda compatibility
+// Manual CORS handling for Lambda compatibility (MUST be first)
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Only set if not already set to avoid duplicates
+  if (!res.getHeader('Access-Control-Allow-Origin')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  if (!res.getHeader('Access-Control-Allow-Methods')) {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  }
+  if (!res.getHeader('Access-Control-Allow-Headers')) {
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
@@ -48,6 +50,13 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 
 app.use(express.json());
 
