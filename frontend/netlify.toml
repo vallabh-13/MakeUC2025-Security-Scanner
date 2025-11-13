@@ -8,7 +8,7 @@
   # Environment variables for build
   [build.environment]
     NODE_VERSION = "20"
-    # Backend deployed to AWS Lambda
+    # Backend deployed to AWS Lambda (updated 2025-11-13)
     VITE_BACKEND_URL = "https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws"
 
 # Redirect rules for SPA (Single Page Application)
