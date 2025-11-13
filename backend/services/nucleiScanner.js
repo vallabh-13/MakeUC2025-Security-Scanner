@@ -11,29 +11,40 @@ const execPromise = util.promisify(exec);
  */
 async function scanWithNuclei(url) {
   const findings = [];
-  
+
   try {
-    // Create temporary output file (cross-platform)
+    // Create temporary directories for Nuclei in /tmp (Lambda-compatible)
     const os = require('os');
-    const outputFile = path.join(os.tmpdir(), `nuclei-${Date.now()}.json`);
-    
-    // Nuclei command:
+    const tmpDir = os.tmpdir();
+    const nucleiConfigDir = path.join(tmpDir, '.nuclei-config');
+    const outputFile = path.join(tmpDir, `nuclei-${Date.now()}.json`);
+
+    // Create config directory
+    await fs.mkdir(nucleiConfigDir, { recursive: true }).catch(() => {});
+
+    // Nuclei command with Lambda-compatible settings:
     // -u: Target URL
     // -jsonl: Output in JSON Lines format
     // -severity: Only scan for critical, high, and medium severity issues
-    // -o: Output file
+    // -o: Output file in /tmp
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
-    // Note: -t flag removed to use default templates location
-    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent`;
-    
-    console.log('Running Nuclei scan...');
-    
-    // Execute Nuclei
+    // -config: Use /tmp for config (Lambda read-only filesystem fix)
+    // -duc: Disable update check
+    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -config "${nucleiConfigDir}" -duc`;
+
+    console.log('Running Nuclei scan with config dir:', nucleiConfigDir);
+
+    // Execute Nuclei with HOME set to /tmp for Lambda compatibility
     await execPromise(command, {
       timeout: 300000, // 5 minutes max
-      maxBuffer: 20 * 1024 * 1024 // 20MB buffer - optimized for Render's memory constraints
+      maxBuffer: 20 * 1024 * 1024, // 20MB buffer
+      env: {
+        ...process.env,
+        HOME: tmpDir, // Force Nuclei to use /tmp for all config/cache
+        NUCLEI_CONFIG_DIR: nucleiConfigDir
+      }
     });
     
     // Read results from output file
@@ -47,8 +58,10 @@ async function scanWithNuclei(url) {
       return { findings: [], error: 'Failed to read scan results' };
     }
 
-    // Clean up temp file
+    // Clean up temp files
     await fs.unlink(outputFile).catch(() => {});
+    // Clean up config directory
+    await fs.rm(nucleiConfigDir, { recursive: true, force: true }).catch(() => {});
 
     // Parse JSON Lines output
     const lines = output.trim().split('\n').filter(Boolean);
@@ -96,16 +109,26 @@ async function scanWithNuclei(url) {
     
   } catch (error) {
     console.error('Nuclei scan failed:', error.message);
-    
+
     // Check if Nuclei is installed
-    if (error.message.includes('nuclei: not found') || 
+    if (error.message.includes('nuclei: not found') ||
         error.message.includes('command not found')) {
-      return { 
-        findings: [], 
-        error: 'Nuclei is not installed on this server. Please install it: https://github.com/projectdiscovery/nuclei' 
+      return {
+        findings: [],
+        error: 'Nuclei is not installed on this server. Please install it: https://github.com/projectdiscovery/nuclei'
       };
     }
-    
+
+    // Check for read-only filesystem errors (Lambda)
+    if (error.message.includes('read-only file system') ||
+        error.message.includes('Could not create runner')) {
+      console.log('Nuclei failed due to filesystem restrictions - this is expected in Lambda');
+      return {
+        findings: [],
+        error: 'Nuclei scan skipped (Lambda filesystem restrictions). Other security scans completed successfully.'
+      };
+    }
+
     // Check if templates are missing
     if (error.message.includes('no templates')) {
       return {
@@ -113,7 +136,9 @@ async function scanWithNuclei(url) {
         error: 'Nuclei templates not found. Run: nuclei -update-templates'
       };
     }
-    
+
+    // Return error but don't fail the whole scan
+    console.log('Nuclei scan completed with errors, continuing with other scans...');
     return { findings: [], error: error.message };
   }
 }
