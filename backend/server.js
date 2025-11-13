@@ -216,6 +216,8 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
     emit('scan:progress', { step: 'parallel-scans', message: 'Running network and vulnerability scans...', progress: 35 });
 
     const scanPromises = [];
+    let completedScans = 0;
+    const totalScans = 4; // Changed from 3 to 4
 
     // SSL Scan Promise
     scanPromises.push(
@@ -229,6 +231,10 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
           logger.error(`[${scanId}] SSL scan failed:`, error);
           emit('scan:error', { step: 'ssl', error: error.message });
           results.ssl = { findings: [], error: error.message };
+        } finally {
+          completedScans++;
+          const progress = 35 + Math.round((completedScans / totalScans) * 55);
+          emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress });
         }
       })()
     );
@@ -245,6 +251,10 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
           logger.error(`[${scanId}] Nmap scan failed:`, error);
           emit('scan:error', { step: 'ports', error: error.message });
           results.nmap = { findings: [], detectedServices: [], error: error.message };
+        } finally {
+          completedScans++;
+          const progress = 35 + Math.round((completedScans / totalScans) * 55);
+          emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress });
         }
       })()
     );
@@ -261,13 +271,15 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
           logger.error(`[${scanId}] Nuclei scan failed:`, error.message, error.stack);
           emit('scan:error', { step: 'nuclei', error: error.message });
           results.nuclei = { findings: [], error: error.message };
+        } finally {
+          completedScans++;
+          const progress = 35 + Math.round((completedScans / totalScans) * 55);
+          emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress });
         }
       })()
     );
 
     await Promise.all(scanPromises);
-
-    emit('scan:progress', { step: 'parallel-scans', message: 'Network scans complete.', progress: 85 });
     
     // Step 6: CVE Check
     emit('scan:progress', { step: 'cve', message: 'Checking CVE database...', progress: 90 });
@@ -278,12 +290,16 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
       } else {
         results.cve = [];
       }
-      emit('scan:step-complete', { step: 'cve', data: { findings: results.cve }, progress: 95 });
+      emit('scan:step-complete', { step: 'cve', data: { findings: results.cve } });
       logger.info(`[${scanId}] CVE check complete`);
     } catch (error) {
       logger.error(`[${scanId}] CVE check failed:`, error);
       emit('scan:error', { step: 'cve', error: error.message });
       results.cve = [];
+    } finally {
+        completedScans++;
+        const progress = 35 + Math.round((completedScans / totalScans) * 55);
+        emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress: 95 });
     }
     
     // Step 7: Aggregate

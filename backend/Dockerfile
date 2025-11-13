@@ -1,44 +1,37 @@
-# Use Node.js 20 Alpine for smaller image size
-FROM node:20-alpine
+# Use the official AWS Lambda base image for Node.js 20
+FROM public.ecr.aws/lambda/nodejs:20
 
-# Install required system dependencies for nmap, nuclei, and other security tools
-RUN apk add --no-cache \
-    nmap \
-    nmap-scripts \
-    curl \
-    bash \
-    openssl
+# Install system dependencies required for the scanners
+# Nmap is available in the default Amazon Linux repositories
+RUN dnf install -y nmap openssl unzip
 
 # Install Nuclei - Get latest version dynamically
+# The Lambda environment is x86_64, so this will download the amd64 build.
 RUN NUCLEI_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/') && \
     curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_amd64.zip" -o nuclei.zip && \
     unzip nuclei.zip && \
     mv nuclei /usr/local/bin/ && \
     chmod +x /usr/local/bin/nuclei && \
     rm nuclei.zip && \
-    nuclei -update-templates
+    # Run template update in a non-interactive way
+    nuclei -update-templates -silent
 
-# Set working directory
-WORKDIR /app
+# Set working directory to the Lambda standard
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy package files
+# Copy package files and the new lambda handler first for better caching
 COPY package*.json ./
+COPY lambda.js ./
 
-# Install dependencies
+# Install production dependencies
 RUN npm ci --only=production
 
-# Copy application code
+# Copy the rest of the application code
+# This includes server.js, services/, utils/, etc.
 COPY . .
 
-# Create logs directory
+# Create logs directory (if your logger writes to file)
 RUN mkdir -p logs
 
-# Expose port
-EXPOSE 8080
-
-# Set environment variable for port
-ENV PORT=8080
-ENV NODE_ENV=production
-
-# Start the application
-CMD ["node", "--max-old-space-size=200", "server.js"]
+# Set the CMD to your handler file name and the handler function
+CMD [ "lambda.handler" ]

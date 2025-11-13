@@ -427,7 +427,7 @@ import React, { useState, useEffect } from 'react';
                 <h2 className="text-3xl font-bold mb-6 text-white">Demo Video</h2>
                 <div className="aspect-video mb-6">
                   <iframe
-                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    src="https://www.youtube.com/embed/rxXQbTms1XU"
                     title="Security Scanner Demo"
                     className="w-full h-full rounded-lg"
                     allowFullScreen
