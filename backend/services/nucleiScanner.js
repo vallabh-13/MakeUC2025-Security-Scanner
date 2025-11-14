@@ -42,18 +42,23 @@ async function scanWithNuclei(url) {
     // -jsonl: Output in JSON Lines format
     // -severity: Only scan for critical, high, and medium severity issues
     // -o: Output file in /tmp
+    // Environment variable NUCLEI_TEMPLATES_DIRECTORY: Use pre-downloaded templates
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
     // -duc: Disable update check (prevents config file creation)
     // -nc: No color output
     // -disable-update-check: Extra safety to prevent updates
+    const templatesDir = '/opt/nuclei-templates'; // Pre-downloaded during Docker build
     const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
 
-    console.log('Running Nuclei scan (Lambda mode - simplified config)');
-    console.log(`Nuclei command: ${command}`);
+    console.log('[Nuclei] Starting scan in Lambda mode with pre-downloaded templates');
+    console.log(`[Nuclei] Command: ${command}`);
+    console.log(`[Nuclei] Templates directory: ${templatesDir}`);
+    console.log(`[Nuclei] Output file: ${outputFile}`);
+    console.log(`[Nuclei] Target URL: ${url}`);
 
-    // Execute Nuclei with HOME set to /tmp for Lambda compatibility
+    // Execute Nuclei with templates directory set via environment variable
     const { stdout, stderr } = await execPromise(command, {
       timeout: 300000, // 5 minutes max
       maxBuffer: 20 * 1024 * 1024, // 20MB buffer
@@ -63,23 +68,36 @@ async function scanWithNuclei(url) {
         TMPDIR: tmpDir,
         TEMP: tmpDir,
         TMP: tmpDir,
-        NUCLEI_CONFIG_DIR: nucleiConfigDir
+        NUCLEI_CONFIG_DIR: nucleiConfigDir,
+        NUCLEI_TEMPLATES_DIRECTORY: templatesDir // Use pre-downloaded templates
       }
     });
 
     if (stderr) {
-      console.warn('Nuclei stderr output:', stderr);
+      console.warn('[Nuclei] stderr output:', stderr);
     }
     if (stdout) {
-      console.log('Nuclei stdout output:', stdout);
+      console.log('[Nuclei] stdout output:', stdout);
     }
-    
+
+    console.log('[Nuclei] Scan execution completed, reading results...');
+
     // Read results from output file
     let output = '';
     try {
+      // Check if file exists first
+      try {
+        const stats = await fs.stat(outputFile);
+        console.log(`[Nuclei] Output file size: ${stats.size} bytes`);
+      } catch (statError) {
+        console.error(`[Nuclei] Output file does not exist: ${outputFile}`);
+        return { findings: [], error: 'Nuclei did not create output file - may have found no vulnerabilities' };
+      }
+
       output = await fs.readFile(outputFile, 'utf-8');
+      console.log(`[Nuclei] Read ${output.length} characters from output file`);
     } catch (readError) {
-      console.error('Failed to read Nuclei output file:', readError.message);
+      console.error('[Nuclei] Failed to read output file:', readError.message);
       // Clean up temp file
       await fs.unlink(outputFile).catch(() => {});
       return { findings: [], error: 'Failed to read scan results' };
@@ -90,7 +108,14 @@ async function scanWithNuclei(url) {
 
     // Parse JSON Lines output
     const lines = output.trim().split('\n').filter(Boolean);
-    
+    console.log(`[Nuclei] Parsing ${lines.length} result lines...`);
+
+    if (lines.length === 0) {
+      console.log('[Nuclei] No vulnerabilities found (empty output)');
+      await fs.unlink(outputFile).catch(() => {});
+      return { findings: [] };
+    }
+
     lines.forEach(line => {
       try {
         const result = JSON.parse(line);
@@ -125,11 +150,12 @@ async function scanWithNuclei(url) {
         });
         
       } catch (e) {
-        console.error('Failed to parse Nuclei result:', e.message);
+        console.error('[Nuclei] Failed to parse result line:', e.message);
+        console.error('[Nuclei] Problematic line:', line.substring(0, 100));
       }
     });
-    
-    console.log(`Nuclei found ${findings.length} issues`);
+
+    console.log(`[Nuclei] Successfully parsed ${findings.length} findings`);
     return { findings };
     
   } catch (error) {
@@ -285,32 +311,24 @@ async function initializeNucleiTemplates() {
       return { success: false, error: 'Nuclei not installed' };
     }
 
-    // Try to update templates in /tmp for Lambda compatibility
-    const os = require('os');
-    const tmpDir = os.tmpdir();
-    const nucleiConfigDir = path.join(tmpDir, '.nuclei-config');
+    // In Lambda, templates are pre-downloaded to /opt/nuclei-templates during Docker build
+    // No need to update templates at runtime - just verify they exist
+    const templatesDir = '/opt/nuclei-templates';
 
     try {
-      await fs.mkdir(nucleiConfigDir, { recursive: true });
-    } catch (mkdirError) {
-      console.warn('Could not create Nuclei config directory:', mkdirError.message);
+      const stats = await fs.stat(templatesDir);
+      if (stats.isDirectory()) {
+        console.log(`Nuclei templates found at ${templatesDir}`);
+        const files = await fs.readdir(templatesDir);
+        console.log(`Template directory contains ${files.length} items`);
+        return { success: true, templatesDir, count: files.length };
+      }
+    } catch (statError) {
+      console.warn(`Templates directory not found at ${templatesDir}:`, statError.message);
+      console.warn('Nuclei will attempt to download templates on first scan');
     }
 
-    // Try to update templates, but don't fail if it doesn't work
-    await execPromise('nuclei -update-templates -silent -duc -disable-update-check', {
-      timeout: 120000, // 2 minutes max
-      env: {
-        ...process.env,
-        HOME: tmpDir,
-        TMPDIR: tmpDir,
-        TEMP: tmpDir,
-        TMP: tmpDir,
-        NUCLEI_CONFIG_DIR: nucleiConfigDir
-      }
-    });
-
-    console.log('Nuclei templates initialized successfully');
-    return { success: true };
+    return { success: false, error: 'Templates not pre-installed, will download on first scan' };
   } catch (error) {
     // Log warning but don't fail - Nuclei will work with built-in templates or download on first scan
     console.warn('Warning: Could not pre-download Nuclei templates:', error.message);

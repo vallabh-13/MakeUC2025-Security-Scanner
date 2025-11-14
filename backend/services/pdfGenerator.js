@@ -18,10 +18,12 @@ async function generatePDF(scanResults, url) {
     try {
       // Use console.error to ensure logs appear in CloudWatch
       console.error('[PDF] Starting PDF generation for URL:', url);
-      console.error('[PDF] Scan results keys:', Object.keys(scanResults));
+      console.error('[PDF] Scan results keys:', JSON.stringify(Object.keys(scanResults)));
       console.error('[PDF] Findings count:', scanResults.findings?.length || 0);
       console.error('[PDF] Score:', scanResults.score);
       console.error('[PDF] Grade:', scanResults.grade);
+      console.error('[PDF] Has detectedTechnology:', !!scanResults.detectedTechnology);
+      console.error('[PDF] Has severityCounts:', !!scanResults.severityCounts);
 
       const doc = new PDFDocument({
         size: 'A4',
@@ -29,9 +31,10 @@ async function generatePDF(scanResults, url) {
         bufferPages: true
       });
 
-      // Set default font immediately - CRITICAL for Lambda
+      // Set default font AND color immediately - CRITICAL for Lambda
       doc.font('Helvetica');
-      console.error('[PDF] Default font set to Helvetica');
+      doc.fillColor('#000000'); // Explicit black color
+      console.error('[PDF] Default font set to Helvetica with black fill color');
 
       const buffers = [];
       doc.on('data', buffers.push.bind(buffers));
@@ -54,7 +57,7 @@ async function generatePDF(scanResults, url) {
         console.error('[PDF] ERROR: Missing or invalid findings array!');
       }
 
-      // Define colors
+      // Define colors - ALL text colors must be dark/black for visibility
       const colors = {
         primary: '#4f46e5',
         secondary: '#7c3aed',
@@ -62,11 +65,12 @@ async function generatePDF(scanResults, url) {
         high: '#ea580c',
         medium: '#ca8a04',
         low: '#2563eb',
-        info: '#0891b2', // Changed from gray to cyan for better visibility
+        info: '#0891b2',
         success: '#16a34a',
-        gray: '#6b7280',
+        gray: '#000000', // Changed to BLACK - was too light (#6b7280)
         lightGray: '#e5e7eb',
-        darkGray: '#374151'
+        darkGray: '#000000', // Pure black
+        textBlack: '#000000' // Pure black for body text
       };
 
       const scoreColor = score >= 80 ? colors.success : score >= 60 ? colors.medium : colors.critical;
@@ -137,15 +141,22 @@ async function generatePDF(scanResults, url) {
       const startX = (doc.page.width - (boxWidth * 3 + spacing * 2)) / 2;
 
       // Security Score Box
+      doc.save(); // Save graphics state
       doc.rect(startX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.font('Helvetica-Bold').fontSize(32).fillColor(scoreColor)
+      doc.restore(); // Restore graphics state
+
+      // Explicitly set text rendering mode and color
+      doc.fillColor(scoreColor);
+      doc.font('Helvetica-Bold').fontSize(32)
         .text(score.toString(), startX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
+
+      doc.fillColor(colors.darkGray); // Use black instead of gray
+      doc.font('Helvetica').fontSize(10)
         .text('Security Score', startX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -154,15 +165,21 @@ async function generatePDF(scanResults, url) {
 
       // Grade Box
       const gradeX = startX + boxWidth + spacing;
+      doc.save();
       doc.rect(gradeX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.font('Helvetica-Bold').fontSize(32).fillColor(scoreColor)
+      doc.restore();
+
+      doc.fillColor(scoreColor);
+      doc.font('Helvetica-Bold').fontSize(32)
         .text(grade, gradeX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
+
+      doc.fillColor(colors.darkGray);
+      doc.font('Helvetica').fontSize(10)
         .text('Overall Grade', gradeX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -171,15 +188,21 @@ async function generatePDF(scanResults, url) {
 
       // Total Issues Box
       const issuesX = startX + (boxWidth + spacing) * 2;
+      doc.save();
       doc.rect(issuesX, summaryY, boxWidth, boxHeight)
         .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.font('Helvetica-Bold').fontSize(32).fillColor(colors.primary)
+      doc.restore();
+
+      doc.fillColor(colors.primary);
+      doc.font('Helvetica-Bold').fontSize(32)
         .text(findings.length.toString(), issuesX, summaryY + 15, {
           width: boxWidth,
           align: 'center',
           continued: false
         });
-      doc.font('Helvetica').fontSize(10).fillColor(colors.gray)
+
+      doc.fillColor(colors.darkGray);
+      doc.font('Helvetica').fontSize(10)
         .text('Total Issues', issuesX, summaryY + 55, {
           width: boxWidth,
           align: 'center',
@@ -207,19 +230,26 @@ async function generatePDF(scanResults, url) {
       severities.forEach((severity, index) => {
         const x = severityStartX + (severityBoxWidth + severitySpacing) * index;
         const count = severityCounts[severity] || 0;
-        const color = colors[severity] || colors.gray;
+        const color = colors[severity] || colors.darkGray;
 
+        // Draw box with save/restore to isolate graphics state
+        doc.save();
         doc.rect(x, severityY, severityBoxWidth, severityBoxHeight)
           .fillAndStroke('#f9fafb', color);
+        doc.restore();
 
-        doc.font('Helvetica-Bold').fontSize(24).fillColor(color)
+        // Draw count number
+        doc.fillColor(color);
+        doc.font('Helvetica-Bold').fontSize(24)
           .text(count.toString(), x, severityY + 12, {
             width: severityBoxWidth,
             align: 'center',
             continued: false
           });
 
-        doc.font('Helvetica').fontSize(9).fillColor(colors.gray)
+        // Draw severity label
+        doc.fillColor(colors.darkGray);
+        doc.font('Helvetica').fontSize(9)
           .text(severity.toUpperCase(), x, severityY + 48, {
             width: severityBoxWidth,
             align: 'center',
@@ -335,42 +365,47 @@ async function generatePDF(scanResults, url) {
           }
 
           const findingY = doc.y;
-          const findingColor = colors[finding.severity] || colors.gray;
+          const findingColor = colors[finding.severity] || colors.darkGray;
           const findingHeight = 70;
 
-          // Left border
+          // Left border - use save/restore
+          doc.save();
           doc.rect(50, findingY, 5, findingHeight).fill(findingColor);
+          doc.restore();
 
-          // Finding box
+          // Finding box - use save/restore
+          doc.save();
           doc.rect(55, findingY, doc.page.width - 110, findingHeight)
             .fillAndStroke('#ffffff', colors.lightGray);
+          doc.restore();
 
-          // Reset fill color to dark after drawing box
+          // Finding number and title - explicitly set color
           doc.fillColor(colors.darkGray);
-
-          // Finding number and title
-          doc.fontSize(12).fillColor(colors.darkGray)
+          doc.fontSize(12)
             .text(`${index + 1}. ${finding.title}`, 65, findingY + 12, {
               width: doc.page.width - 220,
               continued: false
             });
 
-          // Severity badge
+          // Severity badge - use save/restore
           const badgeWidth = 80;
           const badgeX = doc.page.width - 100 - badgeWidth;
+          doc.save();
           doc.roundedRect(badgeX, findingY + 10, badgeWidth, 20, 3).fill(findingColor);
-          doc.fontSize(9).fillColor('white')
+          doc.restore();
+
+          // Severity text - explicitly set to white
+          doc.fillColor('white');
+          doc.fontSize(9)
             .text(finding.severity.toUpperCase(), badgeX, findingY + 14, {
               width: badgeWidth,
               align: 'center',
               continued: false
             });
 
-          // Reset fill color to dark after severity badge
+          // Description - explicitly set color to black
           doc.fillColor(colors.darkGray);
-
-          // Description
-          doc.fontSize(9).fillColor(colors.darkGray)
+          doc.fontSize(9)
             .text(finding.description, 65, findingY + 35, {
               width: doc.page.width - 130,
               continued: false
@@ -389,14 +424,20 @@ async function generatePDF(scanResults, url) {
             const recY = doc.y;
             const recHeight = 50;
 
+            // Recommendation box - use save/restore
+            doc.save();
             doc.rect(55, recY, doc.page.width - 110, recHeight)
               .fillAndStroke('#f0fdf4', colors.success);
+            doc.restore();
 
-            // Removed emoji to fix encoding
-            doc.fontSize(9).fillColor(colors.success)
+            // Recommendation title - explicitly set color
+            doc.fillColor(colors.success);
+            doc.fontSize(9)
               .text('Recommendation:', 65, recY + 10, { continued: false });
 
-            doc.fontSize(8).fillColor('#166534')
+            // Recommendation text - explicitly set color
+            doc.fillColor('#166534');
+            doc.fontSize(8)
               .text(finding.recommendation, 65, recY + 25, {
                 width: doc.page.width - 130,
                 continued: false

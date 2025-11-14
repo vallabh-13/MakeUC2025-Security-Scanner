@@ -13,8 +13,12 @@ RUN NUCLEI_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/nucle
     mv nuclei /usr/local/bin/ && \
     chmod +x /usr/local/bin/nuclei && \
     rm nuclei.zip && \
-    # Run template update in a non-interactive way
-    nuclei -update-templates -silent
+    # Create a permanent templates directory accessible at runtime
+    mkdir -p /opt/nuclei-templates && \
+    # Download templates to /opt/nuclei-templates using environment variable
+    HOME=/tmp NUCLEI_TEMPLATES_DIRECTORY=/opt/nuclei-templates nuclei -update-templates -silent && \
+    # Make templates directory readable
+    chmod -R 755 /opt/nuclei-templates || true
 
 # Set working directory to the Lambda standard
 WORKDIR ${LAMBDA_TASK_ROOT}
