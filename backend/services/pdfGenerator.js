@@ -1,116 +1,42 @@
-const PDFDocument = require('pdfkit');
+const PdfPrinter = require('pdfmake');
+const path = require('path');
 
 /**
- * Generate PDF report from scan results
- *
- * CRITICAL FIX NOTES:
- * - Always reset fillColor() to darkGray after any fill() operations on boxes/shapes
- * - Reset fillColor() after addPage() to prevent white-on-white text
- * - Reset font and fontSize after section headers
- * - This ensures all text remains visible and prevents blank PDF pages
+ * Generate PDF report from scan results using pdfmake
+ * Modern, Lambda-compatible PDF generation with reliable color handling
  *
  * @param {Object} scanResults - Complete scan results
  * @param {string} url - Target URL that was scanned
- * @returns {Buffer} - PDF file as buffer
+ * @returns {Promise<Buffer>} - PDF file as buffer
  */
 async function generatePDF(scanResults, url) {
   return new Promise((resolve, reject) => {
     try {
-      // Use console.error to ensure logs appear in CloudWatch
-      console.error('[PDF] Starting PDF generation for URL:', url);
-      console.error('[PDF] Scan results keys:', JSON.stringify(Object.keys(scanResults)));
+      console.error('[PDF] Starting PDF generation with pdfmake for URL:', url);
       console.error('[PDF] Findings count:', scanResults.findings?.length || 0);
       console.error('[PDF] Score:', scanResults.score);
       console.error('[PDF] Grade:', scanResults.grade);
-      console.error('[PDF] Has detectedTechnology:', !!scanResults.detectedTechnology);
-      console.error('[PDF] Has severityCounts:', !!scanResults.severityCounts);
-
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        bufferPages: true
-      });
-
-      // Set default font AND color immediately - CRITICAL for Lambda
-      doc.font('Helvetica');
-      doc.fillColor('#000000'); // Explicit black color
-      console.error('[PDF] Default font set to Helvetica with black fill color');
-
-      const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(buffers);
-        console.error('[PDF] PDF generation complete. Size:', pdfBuffer.length, 'bytes');
-        resolve(pdfBuffer);
-      });
-      doc.on('error', (err) => {
-        console.error('[PDF] PDF generation error:', err);
-        reject(err);
-      });
 
       const { score, grade, severityCounts, findings, detectedTechnology, scannedAt } = scanResults;
 
-      if (!score && score !== 0) {
-        console.error('[PDF] ERROR: Missing score in scan results!');
-      }
-      if (!findings || !Array.isArray(findings)) {
-        console.error('[PDF] ERROR: Missing or invalid findings array!');
-      }
-
-      // Define colors - ALL text colors must be dark/black for visibility
+      // Define colors
       const colors = {
         primary: '#4f46e5',
-        secondary: '#7c3aed',
         critical: '#dc2626',
         high: '#ea580c',
         medium: '#ca8a04',
         low: '#2563eb',
         info: '#0891b2',
         success: '#16a34a',
-        gray: '#000000', // Changed to BLACK - was too light (#6b7280)
+        textBlack: '#000000',
+        textGray: '#6b7280',
         lightGray: '#e5e7eb',
-        darkGray: '#000000', // Pure black
-        textBlack: '#000000' // Pure black for body text
+        white: '#ffffff'
       };
 
       const scoreColor = score >= 80 ? colors.success : score >= 60 ? colors.medium : colors.critical;
 
-      // Helper function to add a section with padding
-      const addSection = (title, topMargin = 20) => {
-        if (doc.y > 700) {
-          doc.addPage();
-          // Reset font and color after new page
-          doc.font('Helvetica');
-          doc.fillColor(colors.darkGray);
-        }
-        doc.moveDown(topMargin / 12);
-        doc.font('Helvetica-Bold').fontSize(18).fillColor(colors.primary).text(title, 50, doc.y, {
-          align: 'center',
-          width: doc.page.width - 100,
-          underline: true,
-          continued: false
-        });
-        doc.moveDown(0.8);
-        // Reset font, font size, and fill color to dark after each section title
-        doc.font('Helvetica').fontSize(10).fillColor(colors.darkGray);
-      };
-
-      // === HEADER ===
-      doc.rect(0, 0, doc.page.width, 120).fill(colors.primary);
-
-      // Title - removed emoji to fix encoding issues
-      doc.font('Helvetica-Bold').fontSize(28).fillColor('white').text('Security Scan Report', 50, 30, {
-        align: 'center',
-        width: doc.page.width - 100
-      });
-
-      // URL
-      doc.font('Helvetica').fontSize(12).fillColor('white').text(url, 50, 68, {
-        align: 'center',
-        width: doc.page.width - 100
-      });
-
-      // Scan date
+      // Format scan date
       const scanDate = new Date(scannedAt).toLocaleString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -119,385 +45,276 @@ async function generatePDF(scanResults, url) {
         hour: '2-digit',
         minute: '2-digit'
       });
-      doc.font('Helvetica').fontSize(10).fillColor('white').text(`Generated on ${scanDate}`, 50, 92, {
-        align: 'center',
-        width: doc.page.width - 100
-      });
 
-      // Reset Y position and color after header - CRITICAL FIX
-      doc.y = 140;
-      doc.fillColor(colors.darkGray); // Reset to dark color for body text
-      console.error('[PDF] Header complete, fill color reset to', colors.darkGray);
+      // Build document definition
+      const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [50, 120, 50, 60],
 
-      // === EXECUTIVE SUMMARY ===
-      addSection('Executive Summary', 0);
-      console.error('[PDF] Rendering executive summary...');
+        // Header on every page
+        header: function(currentPage, pageCount, pageSize) {
+          if (currentPage === 1) {
+            return {
+              stack: [
+                {
+                  canvas: [
+                    {
+                      type: 'rect',
+                      x: 0,
+                      y: 0,
+                      w: pageSize.width,
+                      h: 100,
+                      color: colors.primary
+                    }
+                  ]
+                },
+                {
+                  text: 'Security Scan Report',
+                  fontSize: 24,
+                  bold: true,
+                  color: colors.white,
+                  alignment: 'center',
+                  margin: [0, 25, 0, 5]
+                },
+                {
+                  text: url,
+                  fontSize: 11,
+                  color: colors.white,
+                  alignment: 'center',
+                  margin: [0, 0, 0, 5]
+                },
+                {
+                  text: `Generated on ${scanDate}`,
+                  fontSize: 9,
+                  color: colors.white,
+                  alignment: 'center',
+                  margin: [0, 0, 0, 10]
+                }
+              ]
+            };
+          }
+          return null;
+        },
 
-      // Summary boxes
-      const summaryY = doc.y;
-      const boxWidth = 150;
-      const boxHeight = 80;
-      const spacing = 20;
-      const startX = (doc.page.width - (boxWidth * 3 + spacing * 2)) / 2;
+        // Footer on every page
+        footer: function(currentPage, pageCount) {
+          return {
+            text: `Page ${currentPage} of ${pageCount} | Report ID: ${Date.now()} | ${new Date(scannedAt).toISOString()}`,
+            alignment: 'center',
+            fontSize: 8,
+            color: colors.textGray,
+            margin: [0, 10, 0, 0]
+          };
+        },
 
-      // Security Score Box
-      doc.save(); // Save graphics state
-      doc.rect(startX, summaryY, boxWidth, boxHeight)
-        .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.restore(); // Restore graphics state
+        content: [
+          // === EXECUTIVE SUMMARY ===
+          {
+            text: 'Executive Summary',
+            fontSize: 18,
+            bold: true,
+            color: colors.primary,
+            decoration: 'underline',
+            alignment: 'center',
+            margin: [0, 0, 0, 20]
+          },
 
-      // Explicitly set text rendering mode and color
-      doc.fillColor(scoreColor);
-      doc.font('Helvetica-Bold').fontSize(32)
-        .text(score.toString(), startX, summaryY + 15, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
+          // Summary boxes
+          {
+            columns: [
+              {
+                width: '*',
+                stack: [
+                  {
+                    canvas: [
+                      {
+                        type: 'rect',
+                        x: 0,
+                        y: 0,
+                        w: 150,
+                        h: 80,
+                        color: colors.lightGray,
+                        lineColor: colors.textBlack,
+                        lineWidth: 1
+                      }
+                    ]
+                  },
+                  {
+                    text: score.toString(),
+                    fontSize: 32,
+                    bold: true,
+                    color: scoreColor,
+                    alignment: 'center',
+                    margin: [0, -65, 0, 0]
+                  },
+                  {
+                    text: 'Security Score',
+                    fontSize: 10,
+                    color: colors.textBlack,
+                    alignment: 'center',
+                    margin: [0, 5, 0, 0]
+                  }
+                ]
+              },
+              {
+                width: '*',
+                stack: [
+                  {
+                    canvas: [
+                      {
+                        type: 'rect',
+                        x: 0,
+                        y: 0,
+                        w: 150,
+                        h: 80,
+                        color: colors.lightGray,
+                        lineColor: colors.textBlack,
+                        lineWidth: 1
+                      }
+                    ]
+                  },
+                  {
+                    text: grade,
+                    fontSize: 32,
+                    bold: true,
+                    color: scoreColor,
+                    alignment: 'center',
+                    margin: [0, -65, 0, 0]
+                  },
+                  {
+                    text: 'Overall Grade',
+                    fontSize: 10,
+                    color: colors.textBlack,
+                    alignment: 'center',
+                    margin: [0, 5, 0, 0]
+                  }
+                ]
+              },
+              {
+                width: '*',
+                stack: [
+                  {
+                    canvas: [
+                      {
+                        type: 'rect',
+                        x: 0,
+                        y: 0,
+                        w: 150,
+                        h: 80,
+                        color: colors.lightGray,
+                        lineColor: colors.textBlack,
+                        lineWidth: 1
+                      }
+                    ]
+                  },
+                  {
+                    text: findings.length.toString(),
+                    fontSize: 32,
+                    bold: true,
+                    color: colors.primary,
+                    alignment: 'center',
+                    margin: [0, -65, 0, 0]
+                  },
+                  {
+                    text: 'Total Issues',
+                    fontSize: 10,
+                    color: colors.textBlack,
+                    alignment: 'center',
+                    margin: [0, 5, 0, 0]
+                  }
+                ]
+              }
+            ],
+            columnGap: 15,
+            margin: [0, 0, 0, 30]
+          },
 
-      doc.fillColor(colors.darkGray); // Use black instead of gray
-      doc.font('Helvetica').fontSize(10)
-        .text('Security Score', startX, summaryY + 55, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
+          // === SEVERITY BREAKDOWN ===
+          {
+            text: 'Severity Breakdown',
+            fontSize: 18,
+            bold: true,
+            color: colors.primary,
+            decoration: 'underline',
+            alignment: 'center',
+            margin: [0, 20, 0, 20]
+          },
 
-      // Grade Box
-      const gradeX = startX + boxWidth + spacing;
-      doc.save();
-      doc.rect(gradeX, summaryY, boxWidth, boxHeight)
-        .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.restore();
+          // Severity boxes
+          {
+            columns: [
+              buildSeverityBox('Critical', severityCounts.critical || 0, colors.critical, colors),
+              buildSeverityBox('High', severityCounts.high || 0, colors.high, colors),
+              buildSeverityBox('Medium', severityCounts.medium || 0, colors.medium, colors),
+              buildSeverityBox('Low', severityCounts.low || 0, colors.low, colors),
+              buildSeverityBox('Info', severityCounts.info || 0, colors.info, colors)
+            ],
+            columnGap: 10,
+            margin: [0, 0, 0, 30]
+          },
 
-      doc.fillColor(scoreColor);
-      doc.font('Helvetica-Bold').fontSize(32)
-        .text(grade, gradeX, summaryY + 15, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
+          // === DETECTED TECHNOLOGIES ===
+          {
+            text: 'Detected Technologies',
+            fontSize: 18,
+            bold: true,
+            color: colors.primary,
+            decoration: 'underline',
+            alignment: 'center',
+            margin: [0, 20, 0, 15],
+            pageBreak: 'before'
+          },
 
-      doc.fillColor(colors.darkGray);
-      doc.font('Helvetica').fontSize(10)
-        .text('Overall Grade', gradeX, summaryY + 55, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
+          ...buildTechnologySection(detectedTechnology, colors),
 
-      // Total Issues Box
-      const issuesX = startX + (boxWidth + spacing) * 2;
-      doc.save();
-      doc.rect(issuesX, summaryY, boxWidth, boxHeight)
-        .fillAndStroke(colors.lightGray, colors.darkGray);
-      doc.restore();
+          // === SECURITY FINDINGS ===
+          {
+            text: 'Security Findings',
+            fontSize: 18,
+            bold: true,
+            color: colors.primary,
+            decoration: 'underline',
+            alignment: 'center',
+            margin: [0, 25, 0, 20]
+          },
 
-      doc.fillColor(colors.primary);
-      doc.font('Helvetica-Bold').fontSize(32)
-        .text(findings.length.toString(), issuesX, summaryY + 15, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
+          ...buildFindingsSection(findings, colors)
+        ],
 
-      doc.fillColor(colors.darkGray);
-      doc.font('Helvetica').fontSize(10)
-        .text('Total Issues', issuesX, summaryY + 55, {
-          width: boxWidth,
-          align: 'center',
-          continued: false
-        });
-
-      doc.y = summaryY + boxHeight + 30;
-
-      // Reset color after summary boxes
-      doc.fillColor(colors.darkGray);
-
-      console.error('[PDF] Executive summary complete');
-
-      // === SEVERITY BREAKDOWN ===
-      addSection('Severity Breakdown');
-      console.error('[PDF] Rendering severity breakdown...');
-
-      const severities = ['critical', 'high', 'medium', 'low', 'info'];
-      const severityY = doc.y;
-      const severityBoxWidth = 90;
-      const severityBoxHeight = 70;
-      const severitySpacing = 15;
-      const severityStartX = (doc.page.width - (severityBoxWidth * 5 + severitySpacing * 4)) / 2;
-
-      severities.forEach((severity, index) => {
-        const x = severityStartX + (severityBoxWidth + severitySpacing) * index;
-        const count = severityCounts[severity] || 0;
-        const color = colors[severity] || colors.darkGray;
-
-        // Draw box with save/restore to isolate graphics state
-        doc.save();
-        doc.rect(x, severityY, severityBoxWidth, severityBoxHeight)
-          .fillAndStroke('#f9fafb', color);
-        doc.restore();
-
-        // Draw count number
-        doc.fillColor(color);
-        doc.font('Helvetica-Bold').fontSize(24)
-          .text(count.toString(), x, severityY + 12, {
-            width: severityBoxWidth,
-            align: 'center',
-            continued: false
-          });
-
-        // Draw severity label
-        doc.fillColor(colors.darkGray);
-        doc.font('Helvetica').fontSize(9)
-          .text(severity.toUpperCase(), x, severityY + 48, {
-            width: severityBoxWidth,
-            align: 'center',
-            continued: false
-          });
-      });
-
-      doc.y = severityY + severityBoxHeight + 25;
-
-      // Reset color after severity boxes
-      doc.fillColor(colors.darkGray);
-
-      console.error('[PDF] Severity breakdown complete');
-
-      // === DETECTED TECHNOLOGIES ===
-      addSection('Detected Technologies');
-      console.error('[PDF] Rendering detected technologies...');
-
-      doc.fontSize(10);
-
-      let techDetected = false;
-
-      if (detectedTechnology && detectedTechnology.webServer) {
-        techDetected = true;
-        doc.fillColor(colors.gray).text('Web Server: ', { continued: true });
-        const serverName = detectedTechnology.webServer.name || 'Unknown';
-        const serverVersion = detectedTechnology.webServer.version && detectedTechnology.webServer.version !== 'unknown' && detectedTechnology.webServer.version !== 'hidden'
-          ? detectedTechnology.webServer.version
-          : '';
-        doc.fillColor(colors.darkGray).text(`${serverName} ${serverVersion}`.trim(), {
-          continued: false
-        });
-      }
-
-      if (detectedTechnology && detectedTechnology.cms) {
-        techDetected = true;
-        const cmsName = typeof detectedTechnology.cms === 'string' ? detectedTechnology.cms : detectedTechnology.cms.name;
-        const cmsVersion = typeof detectedTechnology.cms === 'object' ? detectedTechnology.cms.version || '' : '';
-        doc.fillColor(colors.gray).text('CMS: ', { continued: true });
-        doc.fillColor(colors.darkGray).text(`${cmsName} ${cmsVersion}`.trim(), { continued: false });
-      }
-
-      if (detectedTechnology && detectedTechnology.backend && detectedTechnology.backend.length > 0) {
-        techDetected = true;
-        const backendStr = Array.isArray(detectedTechnology.backend)
-          ? detectedTechnology.backend.map(b => typeof b === 'string' ? b : `${b.name || ''} ${b.version || ''}`.trim()).join(', ')
-          : detectedTechnology.backend;
-        doc.fillColor(colors.gray).text('Backend: ', { continued: true });
-        doc.fillColor(colors.darkGray).text(backendStr, { continued: false });
-      }
-
-      if (detectedTechnology && detectedTechnology.frameworks && detectedTechnology.frameworks.length > 0) {
-        techDetected = true;
-        const frameworkStr = detectedTechnology.frameworks.map(f => f.name || f).join(', ');
-        doc.fillColor(colors.gray).text('Frameworks: ', { continued: true });
-        doc.fillColor(colors.darkGray).text(frameworkStr, { continued: false });
-      }
-
-      if (detectedTechnology && detectedTechnology.libraries && detectedTechnology.libraries.length > 0) {
-        techDetected = true;
-        const libStr = detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ');
-        doc.fillColor(colors.gray).text('Libraries: ', { continued: true });
-        doc.fillColor(colors.darkGray).text(libStr, { continued: false });
-      }
-
-      if (detectedTechnology && detectedTechnology.services && detectedTechnology.services.length > 0) {
-        techDetected = true;
-        try {
-          const serviceStr = detectedTechnology.services.slice(0, 5).map(s => `Port ${s.port}/${s.protocol} - ${s.service}`).join(', ');
-          doc.fillColor(colors.gray).text('Services: ', { continued: true });
-          doc.fillColor(colors.darkGray).text(serviceStr, { continued: false });
-        } catch (err) {
-          console.error('[PDF] Error rendering services:', err);
-          doc.fillColor(colors.gray).text('Services: Found ' + detectedTechnology.services.length + ' open ports', { continued: false });
+        defaultStyle: {
+          font: 'Roboto',
+          fontSize: 10,
+          color: colors.textBlack
         }
-      }
+      };
 
-      if (!techDetected) {
-        doc.fillColor(colors.gray).text('No specific technologies detected. The server may be hiding version information for security reasons.', {
-          align: 'left'
-        });
-      }
+      // Define fonts - use standard fonts that work in Lambda
+      const fonts = {
+        Roboto: {
+          normal: 'Helvetica',
+          bold: 'Helvetica-Bold',
+          italics: 'Helvetica-Oblique',
+          bolditalics: 'Helvetica-BoldOblique'
+        }
+      };
 
-      doc.moveDown(1.5);
+      // Create PDF
+      const printer = new PdfPrinter(fonts);
+      const pdfDoc = printer.createPdfKitDocument(docDefinition);
 
-      console.error('[PDF] Technology section complete');
+      const chunks = [];
+      pdfDoc.on('data', (chunk) => chunks.push(chunk));
+      pdfDoc.on('end', () => {
+        const pdfBuffer = Buffer.concat(chunks);
+        console.error('[PDF] PDF generation complete. Size:', pdfBuffer.length, 'bytes');
+        resolve(pdfBuffer);
+      });
+      pdfDoc.on('error', (err) => {
+        console.error('[PDF] PDF generation error:', err);
+        reject(err);
+      });
 
-      // === SECURITY FINDINGS ===
-      addSection('Security Findings');
-
-      console.error('[PDF] Rendering findings section, count:', findings ? findings.length : 0);
-
-      if (!findings || findings.length === 0) {
-        // Removed checkmark emoji to fix encoding
-        doc.fontSize(12).fillColor(colors.success).text('No security issues found!', {
-          align: 'center'
-        });
-        doc.fontSize(10).fillColor(colors.gray).text('Your website appears to be secure based on our scans.', {
-          align: 'center'
-        });
-        doc.moveDown();
-        console.error('[PDF] No findings to display');
-      } else {
-        console.error('[PDF] Rendering', findings.length, 'findings');
-        findings.forEach((finding, index) => {
-          try {
-            console.error('[PDF] Rendering finding', index + 1, ':', finding.title);
-          // Check if we need a new page
-          if (doc.y > 650) {
-            doc.addPage();
-            // Reset font and color after new page
-            doc.font('Helvetica').fillColor(colors.darkGray);
-          }
-
-          const findingY = doc.y;
-          const findingColor = colors[finding.severity] || colors.darkGray;
-          const findingHeight = 70;
-
-          // Left border - use save/restore
-          doc.save();
-          doc.rect(50, findingY, 5, findingHeight).fill(findingColor);
-          doc.restore();
-
-          // Finding box - use save/restore
-          doc.save();
-          doc.rect(55, findingY, doc.page.width - 110, findingHeight)
-            .fillAndStroke('#ffffff', colors.lightGray);
-          doc.restore();
-
-          // Finding number and title - explicitly set color
-          doc.fillColor(colors.darkGray);
-          doc.fontSize(12)
-            .text(`${index + 1}. ${finding.title}`, 65, findingY + 12, {
-              width: doc.page.width - 220,
-              continued: false
-            });
-
-          // Severity badge - use save/restore
-          const badgeWidth = 80;
-          const badgeX = doc.page.width - 100 - badgeWidth;
-          doc.save();
-          doc.roundedRect(badgeX, findingY + 10, badgeWidth, 20, 3).fill(findingColor);
-          doc.restore();
-
-          // Severity text - explicitly set to white
-          doc.fillColor('white');
-          doc.fontSize(9)
-            .text(finding.severity.toUpperCase(), badgeX, findingY + 14, {
-              width: badgeWidth,
-              align: 'center',
-              continued: false
-            });
-
-          // Description - explicitly set color to black
-          doc.fillColor(colors.darkGray);
-          doc.fontSize(9)
-            .text(finding.description, 65, findingY + 35, {
-              width: doc.page.width - 130,
-              continued: false
-            });
-
-          doc.y = findingY + findingHeight + 5;
-
-          // Recommendation
-          if (finding.recommendation) {
-            if (doc.y > 700) {
-              doc.addPage();
-              // Reset font and color after new page
-              doc.font('Helvetica').fillColor(colors.darkGray);
-            }
-
-            const recY = doc.y;
-            const recHeight = 50;
-
-            // Recommendation box - use save/restore
-            doc.save();
-            doc.rect(55, recY, doc.page.width - 110, recHeight)
-              .fillAndStroke('#f0fdf4', colors.success);
-            doc.restore();
-
-            // Recommendation title - explicitly set color
-            doc.fillColor(colors.success);
-            doc.fontSize(9)
-              .text('Recommendation:', 65, recY + 10, { continued: false });
-
-            // Recommendation text - explicitly set color
-            doc.fillColor('#166534');
-            doc.fontSize(8)
-              .text(finding.recommendation, 65, recY + 25, {
-                width: doc.page.width - 130,
-                continued: false
-              });
-
-            doc.y = recY + recHeight + 5;
-
-            // Reset fill color to dark after recommendation box
-            doc.fillColor(colors.darkGray);
-          }
-
-          // Metadata
-          const metaItems = [];
-          if (finding.cve) metaItems.push(`CVE: ${finding.cve}`);
-          if (finding.cwe) metaItems.push(`CWE: ${finding.cwe}`);
-          if (finding.owasp) metaItems.push(`OWASP: ${finding.owasp}`);
-          if (finding.cvss) metaItems.push(`CVSS: ${finding.cvss}`);
-          if (finding.component) metaItems.push(`Component: ${finding.component} ${finding.componentVersion || ''}`);
-
-          if (metaItems.length > 0) {
-            if (doc.y > 720) {
-              doc.addPage();
-              // Reset font and color after new page
-              doc.font('Helvetica').fillColor(colors.darkGray);
-            }
-
-            doc.fontSize(8).fillColor(colors.gray)
-              .text(metaItems.join(' | '), 55, doc.y, {
-                width: doc.page.width - 110,
-                continued: false
-              });
-            doc.moveDown(0.5);
-          }
-
-          doc.moveDown(1);
-          } catch (err) {
-            console.error('[PDF] Error rendering finding', index + 1, ':', err);
-            // Continue with next finding
-          }
-        });
-        console.error('[PDF] All findings rendered successfully');
-      }
-
-      // === FOOTER ===
-      console.error('[PDF] Adding footer...');
-      const pageCount = doc.bufferedPageRange().count;
-      console.error('[PDF] Total pages:', pageCount);
-      for (let i = 0; i < pageCount; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8).fillColor(colors.gray).text(
-          `Page ${i + 1} of ${pageCount} | Report ID: ${Date.now()} | ${new Date(scannedAt).toISOString()}`,
-          50,
-          doc.page.height - 50,
-          { align: 'center', width: doc.page.width - 100 }
-        );
-      }
-
-      console.error('[PDF] Footer complete, finalizing document...');
-      doc.end();
-      console.error('[PDF] doc.end() called, waiting for buffers...');
+      pdfDoc.end();
 
     } catch (error) {
       console.error('[PDF] CRITICAL ERROR in PDF generation:', error);
@@ -505,6 +322,325 @@ async function generatePDF(scanResults, url) {
       reject(new Error(`Failed to generate PDF: ${error.message}`));
     }
   });
+}
+
+/**
+ * Build a severity box for the breakdown section
+ */
+function buildSeverityBox(label, count, color, colors) {
+  return {
+    width: '*',
+    stack: [
+      {
+        canvas: [
+          {
+            type: 'rect',
+            x: 0,
+            y: 0,
+            w: 90,
+            h: 70,
+            color: '#f9fafb',
+            lineColor: color,
+            lineWidth: 2
+          }
+        ]
+      },
+      {
+        text: count.toString(),
+        fontSize: 24,
+        bold: true,
+        color: color,
+        alignment: 'center',
+        margin: [0, -55, 0, 0]
+      },
+      {
+        text: label.toUpperCase(),
+        fontSize: 9,
+        color: colors.textBlack,
+        alignment: 'center',
+        margin: [0, 8, 0, 0]
+      }
+    ]
+  };
+}
+
+/**
+ * Build technology section
+ */
+function buildTechnologySection(detectedTechnology, colors) {
+  const techItems = [];
+  let techDetected = false;
+
+  if (detectedTechnology?.webServer) {
+    techDetected = true;
+    const serverName = detectedTechnology.webServer.name || 'Unknown';
+    const serverVersion = detectedTechnology.webServer.version &&
+                         detectedTechnology.webServer.version !== 'unknown' &&
+                         detectedTechnology.webServer.version !== 'hidden'
+      ? detectedTechnology.webServer.version
+      : '';
+    techItems.push({
+      text: [
+        { text: 'Web Server: ', color: colors.textGray },
+        { text: `${serverName} ${serverVersion}`.trim(), color: colors.textBlack }
+      ],
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  if (detectedTechnology?.cms) {
+    techDetected = true;
+    const cmsName = typeof detectedTechnology.cms === 'string'
+      ? detectedTechnology.cms
+      : detectedTechnology.cms.name;
+    const cmsVersion = typeof detectedTechnology.cms === 'object'
+      ? detectedTechnology.cms.version || ''
+      : '';
+    techItems.push({
+      text: [
+        { text: 'CMS: ', color: colors.textGray },
+        { text: `${cmsName} ${cmsVersion}`.trim(), color: colors.textBlack }
+      ],
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  if (detectedTechnology?.backend?.length > 0) {
+    techDetected = true;
+    const backendStr = Array.isArray(detectedTechnology.backend)
+      ? detectedTechnology.backend.map(b =>
+          typeof b === 'string' ? b : `${b.name || ''} ${b.version || ''}`.trim()
+        ).join(', ')
+      : detectedTechnology.backend;
+    techItems.push({
+      text: [
+        { text: 'Backend: ', color: colors.textGray },
+        { text: backendStr, color: colors.textBlack }
+      ],
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  if (detectedTechnology?.frameworks?.length > 0) {
+    techDetected = true;
+    const frameworkStr = detectedTechnology.frameworks.map(f => f.name || f).join(', ');
+    techItems.push({
+      text: [
+        { text: 'Frameworks: ', color: colors.textGray },
+        { text: frameworkStr, color: colors.textBlack }
+      ],
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  if (detectedTechnology?.libraries?.length > 0) {
+    techDetected = true;
+    const libStr = detectedTechnology.libraries.slice(0, 5).map(l => l.name).join(', ');
+    techItems.push({
+      text: [
+        { text: 'Libraries: ', color: colors.textGray },
+        { text: libStr, color: colors.textBlack }
+      ],
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  if (detectedTechnology?.services?.length > 0) {
+    techDetected = true;
+    try {
+      const serviceStr = detectedTechnology.services
+        .slice(0, 5)
+        .map(s => `Port ${s.port}/${s.protocol} - ${s.service}`)
+        .join(', ');
+      techItems.push({
+        text: [
+          { text: 'Services: ', color: colors.textGray },
+          { text: serviceStr, color: colors.textBlack }
+        ],
+        margin: [0, 3, 0, 3]
+      });
+    } catch (err) {
+      console.error('[PDF] Error rendering services:', err);
+      techItems.push({
+        text: [
+          { text: 'Services: ', color: colors.textGray },
+          { text: `Found ${detectedTechnology.services.length} open ports`, color: colors.textBlack }
+        ],
+        margin: [0, 3, 0, 3]
+      });
+    }
+  }
+
+  if (!techDetected) {
+    techItems.push({
+      text: 'No specific technologies detected. The server may be hiding version information for security reasons.',
+      color: colors.textGray,
+      margin: [0, 3, 0, 3]
+    });
+  }
+
+  return techItems;
+}
+
+/**
+ * Build findings section
+ */
+function buildFindingsSection(findings, colors) {
+  if (!findings || findings.length === 0) {
+    return [
+      {
+        text: 'No security issues found!',
+        fontSize: 12,
+        color: colors.success,
+        alignment: 'center',
+        margin: [0, 0, 0, 5]
+      },
+      {
+        text: 'Your website appears to be secure based on our scans.',
+        fontSize: 10,
+        color: colors.textGray,
+        alignment: 'center',
+        margin: [0, 0, 0, 20]
+      }
+    ];
+  }
+
+  const findingItems = [];
+
+  findings.forEach((finding, index) => {
+    const findingColor = colors[finding.severity] || colors.textBlack;
+
+    // Add page break before finding if needed (every 3 findings after the first page)
+    if (index > 0 && index % 3 === 0) {
+      findingItems.push({ text: '', pageBreak: 'before' });
+    }
+
+    // Finding box
+    findingItems.push({
+      stack: [
+        {
+          canvas: [
+            {
+              type: 'rect',
+              x: 0,
+              y: 0,
+              w: 5,
+              h: 70,
+              color: findingColor
+            },
+            {
+              type: 'rect',
+              x: 5,
+              y: 0,
+              w: 490,
+              h: 70,
+              color: colors.white,
+              lineColor: colors.lightGray,
+              lineWidth: 1
+            }
+          ]
+        },
+        {
+          columns: [
+            {
+              width: '*',
+              text: `${index + 1}. ${finding.title}`,
+              fontSize: 12,
+              color: colors.textBlack,
+              margin: [15, -60, 0, 0]
+            },
+            {
+              width: 80,
+              canvas: [
+                {
+                  type: 'rect',
+                  x: 0,
+                  y: -50,
+                  w: 80,
+                  h: 20,
+                  r: 3,
+                  color: findingColor
+                }
+              ]
+            }
+          ]
+        },
+        {
+          text: finding.severity.toUpperCase(),
+          fontSize: 9,
+          color: colors.white,
+          bold: true,
+          alignment: 'right',
+          margin: [0, -30, 10, 0]
+        },
+        {
+          text: finding.description,
+          fontSize: 9,
+          color: colors.textBlack,
+          margin: [15, 5, 15, 0]
+        }
+      ],
+      margin: [0, 0, 0, 5]
+    });
+
+    // Recommendation box
+    if (finding.recommendation) {
+      findingItems.push({
+        stack: [
+          {
+            canvas: [
+              {
+                type: 'rect',
+                x: 5,
+                y: 0,
+                w: 490,
+                h: 50,
+                color: '#f0fdf4',
+                lineColor: colors.success,
+                lineWidth: 1
+              }
+            ]
+          },
+          {
+            text: 'Recommendation:',
+            fontSize: 9,
+            color: colors.success,
+            margin: [15, -40, 0, 0]
+          },
+          {
+            text: finding.recommendation,
+            fontSize: 8,
+            color: '#166534',
+            margin: [15, 3, 15, 0]
+          }
+        ],
+        margin: [0, 0, 0, 5]
+      });
+    }
+
+    // Metadata
+    const metaItems = [];
+    if (finding.cve) metaItems.push(`CVE: ${finding.cve}`);
+    if (finding.cwe) metaItems.push(`CWE: ${finding.cwe}`);
+    if (finding.owasp) metaItems.push(`OWASP: ${finding.owasp}`);
+    if (finding.cvss) metaItems.push(`CVSS: ${finding.cvss}`);
+    if (finding.component) {
+      metaItems.push(`Component: ${finding.component} ${finding.componentVersion || ''}`);
+    }
+
+    if (metaItems.length > 0) {
+      findingItems.push({
+        text: metaItems.join(' | '),
+        fontSize: 8,
+        color: colors.textGray,
+        margin: [5, 0, 0, 15]
+      });
+    } else {
+      findingItems.push({ text: '', margin: [0, 0, 0, 15] });
+    }
+  });
+
+  return findingItems;
 }
 
 module.exports = { generatePDF };

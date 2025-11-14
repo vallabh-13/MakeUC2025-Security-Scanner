@@ -122,18 +122,23 @@ function deduplicateFindings(findings) {
  * @returns {number} - Security score (0-100)
  */
 function calculateSecurityScore(counts, total) {
-  if (total === 0) return 100;
+  // Check if we have any real issues (excluding INFO findings)
+  const realIssuesCount = (counts.critical || 0) + (counts.high || 0) + (counts.medium || 0) + (counts.low || 0);
+
+  // If no real issues, return perfect score even if INFO findings exist
+  if (realIssuesCount === 0) return 100;
 
   // More balanced weight system - deductions should be reasonable
+  // INFO findings do NOT affect the score (weight = 0)
   const weights = {
     critical: 15,  // Critical issues (max ~6 issues = 90 points deducted)
     high: 10,      // High severity issues (max ~10 issues = 100 points)
     medium: 5,     // Medium severity issues (max ~20 issues = 100 points)
     low: 2,        // Low severity issues (max ~50 issues = 100 points)
-    info: 1        // Informational findings (max ~100 issues = 100 points)
+    info: 0        // INFO findings are informational only - do NOT affect score
   };
 
-  // Calculate total deductions
+  // Calculate total deductions (INFO findings excluded by 0 weight)
   const deductions =
     (counts.critical || 0) * weights.critical +
     (counts.high || 0) * weights.high +

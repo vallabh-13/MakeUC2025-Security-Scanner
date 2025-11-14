@@ -39,10 +39,10 @@ async function scanWithNuclei(url) {
 
     // Nuclei command with Lambda-compatible settings:
     // -u: Target URL
+    // -t: Explicit templates directory (CRITICAL for Lambda)
     // -jsonl: Output in JSON Lines format
     // -severity: Only scan for critical, high, and medium severity issues
     // -o: Output file in /tmp
-    // Environment variable NUCLEI_TEMPLATES_DIRECTORY: Use pre-downloaded templates
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
@@ -50,7 +50,7 @@ async function scanWithNuclei(url) {
     // -nc: No color output
     // -disable-update-check: Extra safety to prevent updates
     const templatesDir = '/opt/nuclei-templates'; // Pre-downloaded during Docker build
-    const command = `nuclei -u "${url}" -jsonl -severity critical,high,medium -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
+    const command = `nuclei -u "${url}" -t "${templatesDir}" -jsonl -severity critical,high,medium,low,info -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
 
     console.log('[Nuclei] Starting scan in Lambda mode with pre-downloaded templates');
     console.log(`[Nuclei] Command: ${command}`);
