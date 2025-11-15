@@ -3,7 +3,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS builder
 
 # Install build tools and nmap dependencies
 RUN dnf update -y && \
-    dnf install -y gcc gcc-c++ make flex bison openssl-devel libpcap-devel tar bzip2 curl && \
+    dnf install -y --allowerasing gcc gcc-c++ make flex bison openssl-devel libpcap-devel tar bzip2 curl && \
     dnf clean all
 
 # Download and compile Nmap (using a recent stable version)
