@@ -4,53 +4,77 @@ const xml2js = require('xml2js');
 const net = require('net');
 const execPromise = util.promisify(exec);
 
+const IS_LAMBDA = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
 /**
  * Scan ports and detect services using Nmap
  * @param {string} hostname - Target hostname to scan
  * @returns {Object} - Scan results with findings and detected services
  */
 async function scanPorts(hostname) {
-  try {
-    // Try privileged SYN scan first (requires sudo/root)
-    // -sS: SYN stealth scan (faster and more accurate than TCP connect)
-    // -Pn: Skip host discovery (no ping)
-    // -sV: Version detection (identifies service/version)
-    // --version-intensity 5: Medium intensity version detection
-    // -T4: Faster timing (aggressive)
-    // --top-ports 1000: Scan the most common 1000 ports (comprehensive)
-    // -oX -: Output XML to stdout
-    let command = `sudo -n nmap -sS -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
-    let scanType = 'privileged SYN scan';
-
-    console.log('Attempting privileged Nmap scan...');
+  if (IS_LAMBDA) {
+    // In Lambda, we don't have sudo, so go straight to the TCP connect scan.
+    // Use a slightly less intense version scan to improve reliability.
+    console.log('Running Nmap in Lambda environment...');
     try {
+      const command = `nmap -sT -Pn -sV --version-intensity 4 -T4 --top-ports 1000 ${hostname} -oX -`;
       const { stdout } = await execPromise(command, {
-        timeout: 300000 // 5 minutes timeout
+        timeout: 600000 // 10 minutes timeout for Lambda
       });
-      console.log(`✓ Running ${scanType} with service detection`);
+      console.log('✓ Nmap TCP connect scan completed in Lambda');
       return await parseNmapXML(stdout);
-    } catch (sudoError) {
-      // Fallback to unprivileged TCP connect scan
-      console.log('Sudo not available, falling back to TCP connect scan');
-      command = `nmap -sT -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
-      scanType = 'TCP connect scan';
-
-      console.log(`Running ${scanType} with service detection...`);
-      const { stdout } = await execPromise(command, {
-        timeout: 300000
-      });
-      return await parseNmapXML(stdout);
+    } catch (error) {
+      console.error('Nmap scan failed in Lambda:', error.message);
+      console.warn('---');
+      console.warn('Nmap command failed inside the Lambda environment. This could be due to a timeout or networking configuration.');
+      console.warn('Falling back to basic JavaScript-based port check...');
+      console.warn('---');
+      return fallbackPortCheck(hostname);
     }
+  } else {
+    // Local environment logic (try sudo, then fallback)
+    try {
+      // Try privileged SYN scan first (requires sudo/root)
+      // -sS: SYN stealth scan (faster and more accurate than TCP connect)
+      // -Pn: Skip host discovery (no ping)
+      // -sV: Version detection (identifies service/version)
+      // --version-intensity 5: Medium intensity version detection
+      // -T4: Faster timing (aggressive)
+      // --top-ports 1000: Scan the most common 1000 ports (comprehensive)
+      // -oX -: Output XML to stdout
+      let command = `sudo -n nmap -sS -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
+      let scanType = 'privileged SYN scan';
 
-  } catch (error) {
-    console.error('Nmap scan failed:', error.message);
-    console.warn('---');
-    console.warn('Nmap command failed. This likely means nmap is not installed or not in the system PATH.');
-    console.warn('Please install nmap for comprehensive port scanning: https://nmap.org/download.html');
-    console.warn('Falling back to basic JavaScript-based port check...');
-    console.warn('---');
-    // Fallback: Return minimal findings based on common web ports
-    return fallbackPortCheck(hostname);
+      console.log('Attempting privileged Nmap scan...');
+      try {
+        const { stdout } = await execPromise(command, {
+          timeout: 300000 // 5 minutes timeout
+        });
+        console.log(`✓ Running ${scanType} with service detection`);
+        return await parseNmapXML(stdout);
+      } catch (sudoError) {
+        // Fallback to unprivileged TCP connect scan
+        console.log('Sudo not available, falling back to TCP connect scan');
+        command = `nmap -sT -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
+        scanType = 'TCP connect scan';
+
+        console.log(`Running ${scanType} with service detection...`);
+        const { stdout } = await execPromise(command, {
+          timeout: 300000
+        });
+        return await parseNmapXML(stdout);
+      }
+
+    } catch (error) {
+      console.error('Nmap scan failed:', error.message);
+      console.warn('---');
+      console.warn('Nmap command failed. This likely means nmap is not installed or not in the system PATH.');
+      console.warn('Please install nmap for comprehensive port scanning: https://nmap.org/download.html');
+      console.warn('Falling back to basic JavaScript-based port check...');
+      console.warn('---');
+      // Fallback: Return minimal findings based on common web ports
+      return fallbackPortCheck(hostname);
+    }
   }
 }
 
