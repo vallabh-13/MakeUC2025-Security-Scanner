@@ -1,11 +1,17 @@
+
+
+
+
+
+
 # AWS Lambda Deployment Script for Security Scanner Backend (PowerShell)
 # This script builds a Docker image and deploys it to AWS Lambda via ECR
 
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$AWS_REGION = "us-east-1"
-$ECR_REPO = "561645284595.dkr.ecr.us-east-1.amazonaws.com/makeuc-security-scanner"
+$AWS_REGION = "us-east-2"
+$ECR_REPO = "561645284595.dkr.ecr.us-east-2.amazonaws.com/makeuc-security-scanner"
 $LAMBDA_FUNCTION = "makeuc-security-scanner-function"
 $IMAGE_TAG = "latest"
 
@@ -14,6 +20,7 @@ Write-Host "=================================="
 Write-Host "ECR Repository: $ECR_REPO"
 Write-Host "Lambda Function: $LAMBDA_FUNCTION"
 Write-Host "Image Tag: $IMAGE_TAG"
+Write-Host "AWS Region: $AWS_REGION"
 Write-Host "=================================="
 
 # Step 1: Authenticate Docker with ECR
@@ -34,23 +41,24 @@ Write-Host "✅ Docker image built successfully" -ForegroundColor Green
 # Step 3: Tag image for ECR
 Write-Host ""
 Write-Host "🏷️  Step 3/6: Tagging image for ECR..." -ForegroundColor Cyan
-docker tag security-scanner-backend:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG
+docker tag "security-scanner-backend:${IMAGE_TAG}" "${ECR_REPO}:${IMAGE_TAG}"
 if ($LASTEXITCODE -ne 0) { throw "Docker tag failed" }
 Write-Host "✅ Image tagged successfully" -ForegroundColor Green
 
 # Step 4: Push to ECR
 Write-Host ""
 Write-Host "⬆️  Step 4/6: Pushing image to ECR..." -ForegroundColor Cyan
-docker push $ECR_REPO:$IMAGE_TAG
+docker push "${ECR_REPO}:${IMAGE_TAG}"
 if ($LASTEXITCODE -ne 0) { throw "Docker push failed" }
 Write-Host "✅ Image pushed to ECR successfully" -ForegroundColor Green
 
 # Step 5: Update Lambda function code
 Write-Host ""
 Write-Host "🔄 Step 5/6: Updating Lambda function with new image..." -ForegroundColor Cyan
+$imageUri = "${ECR_REPO}:${IMAGE_TAG}"
 aws lambda update-function-code `
   --function-name $LAMBDA_FUNCTION `
-  --image-uri "$ECR_REPO:$IMAGE_TAG" `
+  --image-uri $imageUri `
   --region $AWS_REGION `
   --output json | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Lambda update failed" }
@@ -70,7 +78,7 @@ Write-Host ""
 Write-Host "📋 To update Lambda environment variables, run:" -ForegroundColor Yellow
 Write-Host "aws lambda update-function-configuration \`" -ForegroundColor Gray
 Write-Host "  --function-name $LAMBDA_FUNCTION \`" -ForegroundColor Gray
-Write-Host "  --environment `"Variables={NODE_ENV=production,FRONTEND_URL=https://securityscanner.netlify.app,RATE_LIMIT_WINDOW_MS=900000,RATE_LIMIT_MAX_REQUESTS=100,LOG_LEVEL=info}`" \`" -ForegroundColor Gray
+Write-Host "  --environment 'Variables={NODE_ENV=production,FRONTEND_URL=https://securityscanner.netlify.app,RATE_LIMIT_WINDOW_MS=900000,RATE_LIMIT_MAX_REQUESTS=100,LOG_LEVEL=info}' \`" -ForegroundColor Gray
 Write-Host "  --region $AWS_REGION" -ForegroundColor Gray
 
 Write-Host ""
@@ -78,7 +86,7 @@ Write-Host "==================================" -ForegroundColor Green
 Write-Host "✅ Deployment completed successfully!" -ForegroundColor Green
 Write-Host "==================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "🔗 Lambda Function URL: https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/"
+Write-Host "🔗 Please find your Lambda Function URL in the AWS console for the '$LAMBDA_FUNCTION' function in the '$AWS_REGION' region."
 Write-Host ""
-Write-Host "📊 Test the deployment:" -ForegroundColor Cyan
-Write-Host "curl https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/api/health"
+Write-Host "📊 To test the deployment, use the function URL and append '/api/health'."
+

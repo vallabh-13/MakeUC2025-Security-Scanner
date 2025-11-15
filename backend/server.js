@@ -14,9 +14,32 @@ const { checkVulnerabilities, quickVulnerabilityCheck } = require('./services/cv
 const { aggregateResults } = require('./utils/aggregator');
 const logger = require('./utils/logger');
 const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
+const helmet = require('helmet');
 
 const app = express();
 const server = http.createServer(app);
+
+// Disable x-powered-by header
+app.disable('x-powered-by');
+
+// Use helmet for security headers
+app.use(helmet());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    upgradeInsecureRequests: [],
+  }
+}));
+
+// Add cache-control header
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 
 // Trust proxy setting - REQUIRED for Lambda/API Gateway and rate limiting
 // This allows Express to trust X-Forwarded-* headers from proxies

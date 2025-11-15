@@ -91,27 +91,45 @@ import React, { useState, useEffect, useRef } from 'react';
       const [currentScanId, setCurrentScanId] = useState<string | null>(null);
       const pollingIntervalRef = useRef<number | null>(null);
       const lastStepRef = useRef<string>('');
+      const pollingStartTimeRef = useRef<number>(0);
+      const pollingErrorCountRef = useRef<number>(0);
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
       }, []);
 
-      // Polling logic - check scan status every 2 seconds
+      // Polling logic - check scan status every 2 seconds with timeout protection
       useEffect(() => {
         if (!currentScanId || !isScanning) {
           return;
         }
 
+        pollingStartTimeRef.current = Date.now();
+        pollingErrorCountRef.current = 0;
+        const MAX_POLL_ERRORS = 5; // Stop after 5 consecutive errors
+        const MAX_SCAN_TIME = 10 * 60 * 1000; // 10 minutes max
+
         const pollScanStatus = async () => {
           try {
+            // Check for timeout
+            const elapsedTime = Date.now() - pollingStartTimeRef.current;
+            if (elapsedTime > MAX_SCAN_TIME) {
+              throw new Error('Scan timeout - exceeded 10 minutes');
+            }
+
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-            const response = await fetch(`${backendUrl}/api/scan/${currentScanId}/status`);
+            const response = await fetch(`${backendUrl}/api/scan/${currentScanId}/status`, {
+              signal: AbortSignal.timeout(10000) // 10 second fetch timeout
+            });
 
             if (!response.ok) {
               throw new Error('Failed to fetch scan status');
             }
 
             const data = await response.json();
+
+            // Reset error count on successful fetch
+            pollingErrorCountRef.current = 0;
 
             // Update progress
             if (data.progress !== undefined) {
@@ -180,6 +198,29 @@ import React, { useState, useEffect, useRef } from 'react';
             }
           } catch (error: any) {
             console.error('Polling error:', error);
+            pollingErrorCountRef.current++;
+
+            // Stop polling after too many errors
+            if (pollingErrorCountRef.current >= MAX_POLL_ERRORS || error.message.includes('timeout')) {
+              setIsScanning(false);
+              setScanProgress(0);
+              setScanMessage('');
+              setCurrentScanId(null);
+              lastStepRef.current = '';
+
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+
+              toast.error(error.message || 'Scan failed - lost connection to backend', {
+                style: {
+                  background: '#000000',
+                  color: '#ffffff',
+                  border: '1px solid #ef4444'
+                }
+              });
+            }
           }
         };
 
@@ -578,12 +619,14 @@ import React, { useState, useEffect, useRef } from 'react';
                         href={member.linkedin}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label={`${member.name}'s LinkedIn profile`}
                         className="p-2 rounded-full transition-colors text-slate-400 hover:text-blue-400"
                       >
                         <Linkedin className="h-5 w-5" />
                       </a>
                       <a
                         href={`mailto:${member.email}`}
+                        aria-label={`Email ${member.name}`}
                         className="p-2 rounded-full transition-colors text-slate-400 hover:text-red-400"
                       >
                         <Mail className="h-5 w-5" />
@@ -632,6 +675,7 @@ import React, { useState, useEffect, useRef } from 'react';
                             href={tool.link}
                             target="_blank"
                             rel="noopener noreferrer"
+                            aria-label={`${tool.name} website`}
                             className="p-2 rounded-full transition-colors text-slate-400 hover:text-indigo-400"
                           >
                             <ExternalLink className="h-5 w-5" />

@@ -41,6 +41,7 @@ import React from 'react';
                   href="https://github.com/vallabh-13/MakeUC2025-Security-Scanner"
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="View source code on GitHub"
                   className="p-2 rounded-lg transition-colors hover:bg-zinc-700 text-slate-400 hover:text-white"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
@@ -49,6 +50,7 @@ import React from 'react';
                 </motion.a>
                 <button
                   onClick={toggleDarkMode}
+                  aria-label={isDarkMode ? 'Activate light mode' : 'Activate dark mode'}
                   className="p-2 rounded-lg transition-colors hover:bg-zinc-700 text-slate-400 hover:text-white"
                 >
                   {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
