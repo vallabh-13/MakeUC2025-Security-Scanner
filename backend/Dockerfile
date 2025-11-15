@@ -11,7 +11,7 @@ ARG NMAP_VERSION=7.95
 RUN curl -o nmap.tar.bz2 https://nmap.org/dist/nmap-${NMAP_VERSION}.tar.bz2 && \
     tar -xjf nmap.tar.bz2 && \
     cd nmap-${NMAP_VERSION} && \
-    ./configure --without-zenmap --without-nmap-update --without-libssh2 && \
+    ./configure --without-zenmap --without-nmap-update --without-libssh2 --without-ndiff && \
     make && \
     make install
 
