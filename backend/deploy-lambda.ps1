@@ -9,6 +9,9 @@
 
 $ErrorActionPreference = "Stop"
 
+# Set the current location to the script's directory
+Set-Location $PSScriptRoot
+
 # Configuration
 $AWS_REGION = "us-east-1"
 $ECR_REPO = "561645284595.dkr.ecr.us-east-1.amazonaws.com/makeuc-security-scanner"

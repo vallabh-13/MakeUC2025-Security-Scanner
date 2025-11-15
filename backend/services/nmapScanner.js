@@ -17,7 +17,7 @@ async function scanPorts(hostname) {
     // Use a slightly less intense version scan to improve reliability.
     console.log('Running Nmap in Lambda environment...');
     try {
-      const command = `/usr/bin/nmap -sT -Pn -sV --version-intensity 4 -T4 --top-ports 1000 ${hostname} -oX -`;
+      const command = `/usr/local/bin/nmap -sT -Pn -sV --version-intensity 4 -T4 --top-ports 1000 ${hostname} -oX -`;
       const { stdout } = await execPromise(command, {
         timeout: 600000 // 10 minutes timeout for Lambda
       });
