@@ -44,9 +44,12 @@ async function scanPorts(hostname) {
 
   } catch (error) {
     console.error('Nmap scan failed:', error.message);
-
+    console.warn('---');
+    console.warn('Nmap command failed. This likely means nmap is not installed or not in the system PATH.');
+    console.warn('Please install nmap for comprehensive port scanning: https://nmap.org/download.html');
+    console.warn('Falling back to basic JavaScript-based port check...');
+    console.warn('---');
     // Fallback: Return minimal findings based on common web ports
-    console.log('Falling back to basic port check...');
     return fallbackPortCheck(hostname);
   }
 }
