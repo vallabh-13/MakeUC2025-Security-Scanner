@@ -273,27 +273,27 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
 
     const scanPromises = [];
     let completedScans = 0;
-    const totalScans = 4; // Changed from 3 to 4
+    const totalScans = 4;
 
     // SSL Scan Promise
-    // scanPromises.push(
-    //   (async () => {
-    //     try {
-    //       const sslResults = await scanSSL(hostname);
-    //       results.ssl = sslResults;
-    //       emit('scan:step-complete', { step: 'ssl', data: sslResults });
-    //       logger.info(`[${scanId}] SSL scan complete`);
-    //     } catch (error) {
-    //       logger.error(`[${scanId}] SSL scan failed:`, error);
-    //       emit('scan:error', { step: 'ssl', error: error.message });
-    //       results.ssl = { findings: [], error: error.message };
-    //     } finally {
-    //       completedScans++;
-    //       const progress = 35 + Math.round((completedScans / totalScans) * 55);
-    //       emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress });
-    //     }
-    //   })()
-    // );
+    scanPromises.push(
+      (async () => {
+        try {
+          const sslResults = await scanSSL(hostname);
+          results.ssl = sslResults;
+          emit('scan:step-complete', { step: 'ssl', data: sslResults });
+          logger.info(`[${scanId}] SSL scan complete`);
+        } catch (error) {
+          logger.error(`[${scanId}] SSL scan failed:`, error);
+          emit('scan:error', { step: 'ssl', error: error.message });
+          results.ssl = { findings: [], error: error.message };
+        } finally {
+          completedScans++;
+          const progress = 35 + Math.round((completedScans / totalScans) * 55);
+          emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress });
+        }
+      })()
+    );
 
     // Nmap Scan Promise
     scanPromises.push(
