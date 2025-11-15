@@ -9,7 +9,8 @@ async function scanSSL(hostname) {
         host: hostname,
         startNew: 'on',
         all: 'done'
-      }
+      },
+      timeout: 15000 // 15 seconds timeout
     });
     
     let status = startResponse.data.status;
@@ -19,7 +20,8 @@ async function scanSSL(hostname) {
     while (status !== 'READY' && status !== 'ERROR' && attempts < maxAttempts) {
       await sleep(5000);
       const checkResponse = await axios.get(`${API_URL}analyze`, {
-        params: { host: hostname, all: 'done' }
+        params: { host: hostname, all: 'done' },
+        timeout: 15000 // 15 seconds timeout
       });
       status = checkResponse.data.status;
       attempts++;
