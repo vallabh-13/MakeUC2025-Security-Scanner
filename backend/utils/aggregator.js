@@ -9,9 +9,10 @@
  * @param {Object} nucleiResults - Nuclei scan results
  * @param {Object} detectedSoftware - Detected software/technologies
  * @param {Array} cveFindings - CVE vulnerability findings
+ * @param {string} url - The scanned URL (to check for HTTP vs HTTPS)
  * @returns {Object} - Aggregated results with score and grade
  */
-function aggregateResults(sslResults, nmapResults, nucleiResults, detectedSoftware, cveFindings = []) {
+function aggregateResults(sslResults, nmapResults, nucleiResults, detectedSoftware, cveFindings = [], url = '') {
   // Combine all findings from different sources
   const allFindings = [
     ...(sslResults.findings || []),
@@ -19,6 +20,19 @@ function aggregateResults(sslResults, nmapResults, nucleiResults, detectedSoftwa
     ...(nucleiResults.findings || []),
     ...(cveFindings || [])
   ];
+
+  // Check if site is using HTTP (not HTTPS) - this is a critical security issue
+  const isHttpOnly = url && url.startsWith('http://');
+  if (isHttpOnly) {
+    allFindings.push({
+      severity: 'critical',
+      title: 'Unencrypted HTTP Connection',
+      description: 'This site uses HTTP instead of HTTPS, which means all data transmitted between the browser and server is sent in plain text. Attackers can intercept and read sensitive information like passwords, credit card numbers, and personal data.',
+      cwe: 'CWE-319',
+      owasp: 'A02:2021 - Cryptographic Failures',
+      recommendation: 'Immediately implement HTTPS with a valid SSL/TLS certificate. You can get free certificates from Let\'s Encrypt (https://letsencrypt.org/). This is the most critical security issue that must be fixed.'
+    });
+  }
   
   // Add findings from vulnerable components detected in HTML/headers
   if (detectedSoftware && detectedSoftware.vulnerableComponents) {
@@ -128,13 +142,13 @@ function calculateSecurityScore(counts, total) {
   // If no real issues, return perfect score even if INFO findings exist
   if (realIssuesCount === 0) return 100;
 
-  // More balanced weight system - deductions should be reasonable
+  // Lenient weight system - more forgiving scoring, but strict on critical issues
   // INFO findings do NOT affect the score (weight = 0)
   const weights = {
-    critical: 15,  // Critical issues (max ~6 issues = 90 points deducted)
-    high: 10,      // High severity issues (max ~10 issues = 100 points)
-    medium: 5,     // Medium severity issues (max ~20 issues = 100 points)
-    low: 2,        // Low severity issues (max ~50 issues = 100 points)
+    critical: 20,  // Critical issues deserve harsh penalty (e.g., no HTTPS)
+    high: 7,       // High severity - reduced from 10 to 7 (more lenient)
+    medium: 3,     // Medium severity - reduced from 5 to 3 (more lenient)
+    low: 1,        // Low severity - reduced from 2 to 1 (more lenient)
     info: 0        // INFO findings are informational only - do NOT affect score
   };
 

@@ -320,7 +320,8 @@ async function runScanSync(url, hostname, scanId) {
       results.nmap || { findings: [] },
       results.nuclei || { findings: [] },
       results.detectedSoftware || {},
-      [...quickVulns, ...(results.cve || [])]
+      [...quickVulns, ...(results.cve || [])],
+      url  // Pass URL to check for HTTP vs HTTPS
     );
 
     // Add the scanned URL to results
@@ -479,7 +480,8 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
       results.nmap || { findings: [] },
       results.nuclei || { findings: [] },
       results.detectedSoftware || {},
-      [...quickVulns, ...(results.cve || [])]
+      [...quickVulns, ...(results.cve || [])],
+      url  // Pass URL to check for HTTP vs HTTPS
     );
 
     // Add the scanned URL to results
