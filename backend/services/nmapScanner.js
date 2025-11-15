@@ -17,14 +17,17 @@ async function scanPorts(hostname) {
     // Use a slightly less intense version scan to improve reliability.
     console.log('Running Nmap in Lambda environment...');
     try {
-      const command = `nmap -sT -Pn -sV --version-intensity 4 -T4 --top-ports 1000 ${hostname} -oX -`;
+      const command = `/usr/bin/nmap -sT -Pn -sV --version-intensity 4 -T4 --top-ports 1000 ${hostname} -oX -`;
       const { stdout } = await execPromise(command, {
         timeout: 600000 // 10 minutes timeout for Lambda
       });
       console.log('✓ Nmap TCP connect scan completed in Lambda');
       return await parseNmapXML(stdout);
     } catch (error) {
-      console.error('Nmap scan failed in Lambda:', error.message);
+      console.error('Nmap scan failed in Lambda. Full error details:');
+      console.error('Error Message:', error.message);
+      console.error('Nmap Stderr:', error.stderr);
+      console.error('Nmap Stdout:', error.stdout);
       console.warn('---');
       console.warn('Nmap command failed inside the Lambda environment. This could be due to a timeout or networking configuration.');
       console.warn('Falling back to basic JavaScript-based port check...');
