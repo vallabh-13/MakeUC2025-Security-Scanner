@@ -68,48 +68,13 @@ const limiter = rateLimit({
   message: { error: 'Too many scan requests. Please try again in 15 minutes.' }
 });
 
-const fs = require('fs').promises;
-const path = require('path');
-
 // Store active scans
 const activeScans = new Map();
 
-// Store scan progress for polling (in-memory cache + file-based fallback for Lambda)
+// Store scan progress for polling (in-memory cache only)
+// Lambda containers don't share /tmp, so file-based caching won't work
+// For production, consider DynamoDB or ElastiCache for shared state
 const scanProgressStore = new Map();
-const SCAN_CACHE_DIR = path.join('/tmp', 'scan-cache');
-
-// Initialize scan cache directory
-async function initScanCache() {
-  try {
-    await fs.mkdir(SCAN_CACHE_DIR, { recursive: true });
-    logger.info('Scan cache directory initialized');
-  } catch (error) {
-    logger.error('Failed to create scan cache directory:', error);
-  }
-}
-
-// Save scan data to file (for Lambda container persistence)
-async function saveScanToFile(scanId, scanData) {
-  try {
-    const filePath = path.join(SCAN_CACHE_DIR, `${scanId}.json`);
-    await fs.writeFile(filePath, JSON.stringify(scanData));
-  } catch (error) {
-    logger.error(`Failed to save scan ${scanId} to file:`, error);
-  }
-}
-
-// Load scan data from file (for Lambda container persistence)
-async function loadScanFromFile(scanId) {
-  try {
-    const filePath = path.join(SCAN_CACHE_DIR, `${scanId}.json`);
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return null; // File doesn't exist or can't be read
-  }
-}
-
-initScanCache();
 
 // Concurrency limiter - configurable based on available memory
 let runningScansCount = 0;
@@ -143,25 +108,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // Polling endpoint for scan status
-app.get('/api/scan/:scanId/status', asyncHandler(async (req, res) => {
+app.get('/api/scan/:scanId/status', (req, res) => {
   const { scanId } = req.params;
 
-  // Try memory first
-  let scanData = scanProgressStore.get(scanId);
-
-  // If not in memory, try loading from file (Lambda container persistence)
-  if (!scanData) {
-    scanData = await loadScanFromFile(scanId);
-
-    // If found in file, load it into memory
-    if (scanData) {
-      scanProgressStore.set(scanId, scanData);
-      logger.info(`Loaded scan ${scanId} from file cache`);
-    }
-  }
+  const scanData = scanProgressStore.get(scanId);
 
   if (!scanData) {
-    logger.warn(`Scan ${scanId} not found in memory or file cache`);
+    logger.warn(`Scan ${scanId} not found in memory`);
     return res.status(404).json({
       error: 'Scan not found or expired',
       scanId
@@ -169,7 +122,7 @@ app.get('/api/scan/:scanId/status', asyncHandler(async (req, res) => {
   }
 
   res.json(scanData);
-}));
+});
 
 // WebSocket connection handler
 io.on('connection', (socket) => {
@@ -221,7 +174,7 @@ app.post('/api/scan', limiter, asyncHandler(async (req, res) => {
   const hostname = validation.hostname;
   
   // Initialize progress store for polling
-  const initialScanData = {
+  scanProgressStore.set(scanId, {
     scanId,
     status: 'processing',
     progress: 5,
@@ -230,12 +183,6 @@ app.post('/api/scan', limiter, asyncHandler(async (req, res) => {
     results: null,
     error: null,
     startedAt: new Date().toISOString()
-  };
-  scanProgressStore.set(scanId, initialScanData);
-
-  // Save initial scan data to file for Lambda persistence
-  saveScanToFile(scanId, initialScanData).catch(err => {
-    logger.error(`Failed to save initial scan ${scanId} to file:`, err);
   });
 
   // Send initial response
@@ -257,16 +204,10 @@ app.post('/api/scan', limiter, asyncHandler(async (req, res) => {
   const emit = (event, data) => {
     // Update progress store for polling
     const currentProgress = scanProgressStore.get(scanId) || {};
-    const updatedData = {
+    scanProgressStore.set(scanId, {
       ...currentProgress,
       ...data,
       lastUpdated: new Date().toISOString()
-    };
-    scanProgressStore.set(scanId, updatedData);
-
-    // Save to file for Lambda container persistence
-    saveScanToFile(scanId, updatedData).catch(err => {
-      logger.error(`Failed to save scan ${scanId} progress to file:`, err);
     });
 
     // Also emit via Socket.IO if client is connected
