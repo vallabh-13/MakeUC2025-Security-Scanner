@@ -2,8 +2,8 @@
 FROM public.ecr.aws/lambda/nodejs:20
 
 # Install system dependencies required for the scanners
-# Nmap is available in the default Amazon Linux repositories
-RUN dnf install -y nmap openssl unzip
+# Update first to ensure we get the latest compatible libraries
+RUN dnf update -y && dnf install -y nmap openssl unzip
 
 # Install Nuclei - Get latest version dynamically
 # The Lambda environment is x86_64, so this will download the amd64 build.
