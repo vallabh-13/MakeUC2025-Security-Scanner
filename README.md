@@ -156,6 +156,7 @@ No changes needed unless you change the backend port.
 - Tailwind CSS
 - Socket.io Client (real-time updates)
 - Framer Motion (animations)
+- @react-pdf/renderer (client-side PDF generation)
 
 **Backend:**
 - Node.js + Express
@@ -173,8 +174,15 @@ No changes needed unless you change the backend port.
 - **Backend**: AWS Lambda (Docker/ECR) - https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/
 - **Planned Domain**: securescan.tech
 
-### Recent Updates (Nov 13, 2025)
-Fixed critical bugs:
+### Recent Updates
+
+**Nov 14, 2025** - PDF Generation Overhaul:
+- **Moved PDF generation to frontend** using @react-pdf/renderer
+- **Eliminated Lambda PDF issues** - No more blank pages or rendering problems
+- **Client-side generation** - Faster, more reliable, easier to debug
+- **No backend dependency** - PDF works even if Lambda is down
+
+**Nov 13, 2025** - Bug Fixes:
 1. **Software detection failing** - Fixed undefined `html` variable causing blank PDFs
 2. **Vulnerable components not detected** - Fixed property name mismatch (`comp.component` vs `comp.name`)
 3. **Info severity color** - Changed from gray to cyan for better visibility in PDF reports
@@ -221,21 +229,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Frontend README**: [frontend/README.md](./frontend/README.md)
 - **Backend README**: [backend/README.md](./backend/README.md)
 - **Deployment Guide**: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
-
-
-
----
-
-
-
-
-
-\
-
-
-
-
-
-
-
-

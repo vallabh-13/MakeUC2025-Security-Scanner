@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
     import Footer from '../components/Footer';
     import ScanForm from '../components/ScanForm';
     import ScanResults from '../components/ScanResults';
+    import { generatePDF } from '../components/SecurityReportPDF';
     import { toast } from 'react-toastify';
     import { Shield, Search, AlertTriangle, Bug, ExternalLink, Linkedin, Mail } from 'lucide-react';
 
@@ -261,42 +262,36 @@ import React, { useState, useEffect, useRef } from 'react';
       const handleDownloadReport = async () => {
         if (!scanResults) {
           console.error('[Frontend] No scan results available for PDF generation');
+          toast.error('No scan results available', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #ef4444'
+            }
+          });
           return;
         }
 
         try {
-          console.log('[Frontend] Preparing PDF download...');
-          console.log('[Frontend] Scan results:', {
-            score: scanResults.score,
-            grade: scanResults.grade,
-            findingsCount: scanResults.findings?.length || 0,
-            hasDetectedTech: !!scanResults.detectedTechnology
+          console.log('[Frontend] Generating PDF in browser...');
+
+          toast.info('Generating PDF report...', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #3b82f6'
+            }
           });
 
-          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
           const targetUrl = scanResults.url || 'Unknown';
 
-          const resultsString = JSON.stringify(scanResults);
-          console.log('[Frontend] Serialized results size:', resultsString.length, 'characters');
+          // Generate PDF using @react-pdf/renderer
+          const blob = await generatePDF(scanResults, targetUrl);
 
-          const fullUrl = `${backendUrl}/api/report/${Date.now()}/pdf?results=${encodeURIComponent(resultsString)}&url=${encodeURIComponent(targetUrl)}`;
-          console.log('[Frontend] PDF request URL length:', fullUrl.length);
-
-          const response = await fetch(fullUrl);
-
-          console.log('[Frontend] PDF response status:', response.status);
-          console.log('[Frontend] PDF response headers:', Array.from(response.headers.entries()));
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[Frontend] PDF download failed:', errorText);
-            throw new Error('Failed to download report');
-          }
-
-          const blob = await response.blob();
           console.log('[Frontend] PDF blob size:', blob.size, 'bytes');
           console.log('[Frontend] PDF blob type:', blob.type);
 
+          // Download the PDF
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -314,8 +309,8 @@ import React, { useState, useEffect, useRef } from 'react';
             }
           });
         } catch (error: any) {
-          console.error('[Frontend] PDF download error:', error);
-          toast.error(error.message || 'Failed to download report', {
+          console.error('[Frontend] PDF generation error:', error);
+          toast.error(error.message || 'Failed to generate report', {
             style: {
               background: '#000000',
               color: '#ffffff',
