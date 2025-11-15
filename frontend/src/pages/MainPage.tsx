@@ -119,7 +119,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
             const response = await fetch(`${backendUrl}/api/scan/${currentScanId}/status`, {
-              signal: AbortSignal.timeout(10000) // 10 second fetch timeout
+              signal: AbortSignal.timeout(30000) // 30 second fetch timeout (SSL scans can take time)
             });
 
             if (!response.ok) {
