@@ -10,8 +10,8 @@
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$AWS_REGION = "us-east-2"
-$ECR_REPO = "561645284595.dkr.ecr.us-east-2.amazonaws.com/makeuc-security-scanner"
+$AWS_REGION = "us-east-1"
+$ECR_REPO = "561645284595.dkr.ecr.us-east-1.amazonaws.com/makeuc-security-scanner"
 $LAMBDA_FUNCTION = "makeuc-security-scanner-function"
 $IMAGE_TAG = "latest"
 
@@ -20,7 +20,6 @@ Write-Host "=================================="
 Write-Host "ECR Repository: $ECR_REPO"
 Write-Host "Lambda Function: $LAMBDA_FUNCTION"
 Write-Host "Image Tag: $IMAGE_TAG"
-Write-Host "AWS Region: $AWS_REGION"
 Write-Host "=================================="
 
 # Step 1: Authenticate Docker with ECR
@@ -86,7 +85,8 @@ Write-Host "==================================" -ForegroundColor Green
 Write-Host "✅ Deployment completed successfully!" -ForegroundColor Green
 Write-Host "==================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "🔗 Please find your Lambda Function URL in the AWS console for the '$LAMBDA_FUNCTION' function in the '$AWS_REGION' region."
+Write-Host "🔗 Lambda Function URL: https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/"
 Write-Host ""
-Write-Host "📊 To test the deployment, use the function URL and append '/api/health'."
+Write-Host "📊 Test the deployment:" -ForegroundColor Cyan
+Write-Host "curl https://gdknxtbsizoibcoexozxq3qysy0ljkiq.lambda-url.us-east-1.on.aws/api/health"
 
