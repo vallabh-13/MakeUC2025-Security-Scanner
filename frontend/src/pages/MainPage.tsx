@@ -122,6 +122,13 @@ import React, { useState, useEffect, useRef } from 'react';
               signal: AbortSignal.timeout(30000) // 30 second fetch timeout (SSL scans can take time)
             });
 
+            // Handle 404 errors gracefully (Lambda multi-container issue)
+            // Scan might be running on a different container, keep polling
+            if (response.status === 404) {
+              console.log(`Scan ${currentScanId} not found on this Lambda container, will retry...`);
+              return; // Continue polling, don't increment error count
+            }
+
             if (!response.ok) {
               throw new Error('Failed to fetch scan status');
             }
