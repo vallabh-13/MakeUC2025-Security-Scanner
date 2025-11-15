@@ -22,9 +22,15 @@ FROM public.ecr.aws/lambda/nodejs:20
 COPY --from=builder /usr/local/bin/nmap /usr/local/bin/nmap
 COPY --from=builder /usr/local/share/nmap /usr/local/share/nmap
 
-# Install system dependencies (openssl for crypto, unzip for nuclei)
-# We no longer install nmap via dnf
-RUN dnf install -y openssl unzip
+# Install system dependencies
+# - libpcap: Required runtime library for nmap to function
+# - openssl: For SSL/TLS operations
+# - unzip: For nuclei installation
+RUN dnf install -y libpcap openssl unzip && \
+    dnf clean all
+
+# Verify nmap binary works (will fail build if nmap has missing dependencies)
+RUN /usr/local/bin/nmap --version || (echo "ERROR: nmap binary verification failed" && exit 1)
 
 # Install Nuclei - Get latest version dynamically
 # (This part remains the same)
