@@ -88,161 +88,12 @@ import React, { useState, useEffect, useRef } from 'react';
       const [isDarkMode, setIsDarkMode] = useState(true);
       const [scanProgress, setScanProgress] = useState(0);
       const [scanMessage, setScanMessage] = useState('');
-      const [currentScanId, setCurrentScanId] = useState<string | null>(null);
-      const pollingIntervalRef = useRef<number | null>(null);
-      const lastStepRef = useRef<string>('');
-      const pollingStartTimeRef = useRef<number>(0);
-      const pollingErrorCountRef = useRef<number>(0);
 
       useEffect(() => {
         document.documentElement.classList.add('dark');
       }, []);
 
-      // Polling logic - check scan status every 2 seconds with timeout protection
-      useEffect(() => {
-        if (!currentScanId || !isScanning) {
-          return;
-        }
-
-        pollingStartTimeRef.current = Date.now();
-        pollingErrorCountRef.current = 0;
-        const MAX_POLL_ERRORS = 5; // Stop after 5 consecutive errors
-        const MAX_SCAN_TIME = 10 * 60 * 1000; // 10 minutes max
-
-        const pollScanStatus = async () => {
-          try {
-            // Check for timeout
-            const elapsedTime = Date.now() - pollingStartTimeRef.current;
-            if (elapsedTime > MAX_SCAN_TIME) {
-              throw new Error('Scan timeout - exceeded 10 minutes');
-            }
-
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-            const response = await fetch(`${backendUrl}/api/scan/${currentScanId}/status`, {
-              signal: AbortSignal.timeout(30000) // 30 second fetch timeout (SSL scans can take time)
-            });
-
-            // Handle 404 errors gracefully (Lambda multi-container issue)
-            // Scan might be running on a different container, keep polling
-            if (response.status === 404) {
-              console.log(`Scan ${currentScanId} not found on this Lambda container, will retry...`);
-              return; // Continue polling, don't increment error count
-            }
-
-            if (!response.ok) {
-              throw new Error('Failed to fetch scan status');
-            }
-
-            const data = await response.json();
-
-            // Reset error count on successful fetch
-            pollingErrorCountRef.current = 0;
-
-            // Update progress
-            if (data.progress !== undefined) {
-              setScanProgress(data.progress);
-            }
-            if (data.message) {
-              setScanMessage(data.message);
-            }
-
-            // Show toasts for important steps (only once per step)
-            const importantSteps = ['start', 'detection', 'parallel-scans', 'aggregate'];
-            if (data.step && importantSteps.includes(data.step) && lastStepRef.current !== data.step) {
-              lastStepRef.current = data.step;
-              toast.info(data.message, {
-                style: {
-                  background: '#000000',
-                  color: '#ffffff',
-                  border: '1px solid #333333'
-                }
-              });
-            }
-
-            // Check if scan is complete
-            if (data.status === 'completed' && data.results) {
-              setScanResults(data.results);
-              setIsScanning(false);
-              setScanProgress(100);
-              setScanMessage('Scan completed!');
-              setCurrentScanId(null);
-              lastStepRef.current = '';
-
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-
-              toast.success('Scan completed successfully!', {
-                style: {
-                  background: '#000000',
-                  color: '#ffffff',
-                  border: '1px solid #22c55e'
-                }
-              });
-            }
-
-            // Check if scan failed
-            if (data.status === 'failed') {
-              setIsScanning(false);
-              setScanProgress(0);
-              setScanMessage('');
-              setCurrentScanId(null);
-              lastStepRef.current = '';
-
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-
-              toast.error(data.error || 'Scan failed', {
-                style: {
-                  background: '#000000',
-                  color: '#ffffff',
-                  border: '1px solid #ef4444'
-                }
-              });
-            }
-          } catch (error: any) {
-            console.error('Polling error:', error);
-            pollingErrorCountRef.current++;
-
-            // Stop polling after too many errors
-            if (pollingErrorCountRef.current >= MAX_POLL_ERRORS || error.message.includes('timeout')) {
-              setIsScanning(false);
-              setScanProgress(0);
-              setScanMessage('');
-              setCurrentScanId(null);
-              lastStepRef.current = '';
-
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-
-              toast.error(error.message || 'Scan failed - lost connection to backend', {
-                style: {
-                  background: '#000000',
-                  color: '#ffffff',
-                  border: '1px solid #ef4444'
-                }
-              });
-            }
-          }
-        };
-
-        // Start polling
-        pollScanStatus(); // Initial call
-        pollingIntervalRef.current = setInterval(pollScanStatus, 2000); // Poll every 2 seconds
-
-        // Cleanup on unmount or when scanning stops
-        return () => {
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        };
-      }, [currentScanId, isScanning]);
+      // No polling needed - backend returns results synchronously!
 
       const toggleDarkMode = () => {
         setIsDarkMode(!isDarkMode);
@@ -264,13 +115,27 @@ import React, { useState, useEffect, useRef } from 'react';
             throw new Error('Backend service unavailable');
           }
 
-          // Start the scan
+          // Show scanning toast
+          toast.info('Scan started! This may take 2-5 minutes...', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #333333'
+            }
+          });
+
+          // Update progress messages during scan
+          setScanMessage('Running security scans...');
+          setScanProgress(50);
+
+          // Start the scan - synchronous response (no polling!)
           const scanResponse = await fetch(`${backendUrl}/api/scan`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ url }),
+            signal: AbortSignal.timeout(600000) // 10 minute timeout for full scan
           });
 
           if (!scanResponse.ok) {
@@ -280,23 +145,28 @@ import React, { useState, useEffect, useRef } from 'react';
 
           const scanData = await scanResponse.json();
 
-          // Store scanId to start polling
-          if (scanData.scanId) {
-            setCurrentScanId(scanData.scanId);
-            toast.info('Scan started! Monitoring progress...', {
+          // Backend now returns results directly (synchronous)
+          if (scanData.status === 'completed' && scanData.results) {
+            setScanResults(scanData.results);
+            setIsScanning(false);
+            setScanProgress(100);
+            setScanMessage('Scan completed!');
+
+            toast.success('Scan completed successfully!', {
               style: {
                 background: '#000000',
                 color: '#ffffff',
-                border: '1px solid #333333'
+                border: '1px solid #10b981'
               }
             });
+          } else if (scanData.status === 'failed') {
+            throw new Error(scanData.error || 'Scan failed');
           }
 
         } catch (error: any) {
           setIsScanning(false);
           setScanProgress(0);
           setScanMessage('');
-          setCurrentScanId(null);
           toast.error(error.message || 'An error occurred', {
             style: {
               background: '#000000',

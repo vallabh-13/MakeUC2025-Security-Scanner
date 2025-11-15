@@ -185,46 +185,156 @@ app.post('/api/scan', limiter, asyncHandler(async (req, res) => {
     startedAt: new Date().toISOString()
   });
 
-  // Send initial response
-  res.json({
-    message: 'Scan started',
-    scanId,
-    status: 'processing',
-    estimatedTime: '2-5 minutes'
-  });
-
-  // Get socket for real-time updates (optional - fallback for WebSocket)
-  const clientSocket = socketId ? io.sockets.sockets.get(socketId) : null;
-
-  if (clientSocket) {
-    activeScans.set(socketId, scanId);
-  }
-
-  // Emit progress updates (supports both Socket.IO and polling)
-  const emit = (event, data) => {
-    // Update progress store for polling
-    const currentProgress = scanProgressStore.get(scanId) || {};
-    scanProgressStore.set(scanId, {
-      ...currentProgress,
-      ...data,
-      lastUpdated: new Date().toISOString()
-    });
-
-    // Also emit via Socket.IO if client is connected
-    if (clientSocket && clientSocket.connected) {
-      clientSocket.emit(event, { scanId, ...data });
-    }
-  };
-
-  emit('scan:progress', { step: 'start', message: 'Scan initiated...', progress: 5 });
-
   // Increment running scans counter
   runningScansCount++;
   logger.info(`[${scanId}] Running scans: ${runningScansCount}/${MAX_CONCURRENT_SCANS}`);
 
-  // Run scans with progress updates
-  runScanWithProgress(url, hostname, scanId, emit, socketId);
+  // Run scan synchronously and return results directly
+  try {
+    const finalResults = await runScanSync(url, hostname, scanId);
+
+    // Return results directly - no polling needed!
+    res.json({
+      status: 'completed',
+      results: finalResults,
+      message: 'Scan completed successfully!'
+    });
+  } catch (error) {
+    logger.error(`[${scanId}] Scan failed:`, error);
+    res.status(500).json({
+      status: 'failed',
+      error: error.message
+    });
+  } finally {
+    runningScansCount--;
+    logger.info(`[${scanId}] Scan finished. Running scans: ${runningScansCount}/${MAX_CONCURRENT_SCANS}`);
+  }
 }));
+
+// Synchronous scan function - returns results directly without polling
+async function runScanSync(url, hostname, scanId) {
+  const results = {
+    detectedSoftware: null,
+    ssl: null,
+    nmap: null,
+    nuclei: null,
+    cve: null
+  };
+
+  try {
+    // Step 1: Software Detection
+    logger.info(`[${scanId}] Step 1/5: Detecting technologies...`);
+    try {
+      results.detectedSoftware = await detectSoftware(url);
+      logger.info(`[${scanId}] Software detection complete`);
+    } catch (error) {
+      logger.error(`[${scanId}] Software detection failed:`, error);
+    }
+
+    // Step 2: Quick Vulnerability Check
+    logger.info(`[${scanId}] Step 2/5: Checking known vulnerabilities...`);
+    const quickVulns = [];
+    if (results.detectedSoftware) {
+      if (results.detectedSoftware.webServer) {
+        const vuln = quickVulnerabilityCheck(
+          results.detectedSoftware.webServer.name,
+          results.detectedSoftware.webServer.version
+        );
+        if (vuln) quickVulns.push(vuln);
+      }
+
+      results.detectedSoftware.libraries?.forEach(lib => {
+        if (lib.version) {
+          const vuln = quickVulnerabilityCheck(lib.name, lib.version);
+          if (vuln) quickVulns.push(vuln);
+        }
+      });
+    }
+
+    // Step 3: Run main scans in parallel (SSL, Nmap, Nuclei)
+    logger.info(`[${scanId}] Step 3/5: Running parallel scans (SSL, Nmap, Nuclei)...`);
+    const scanPromises = [];
+
+    // SSL Scan Promise
+    scanPromises.push(
+      (async () => {
+        try {
+          const sslResults = await scanSSL(hostname);
+          results.ssl = sslResults;
+          logger.info(`[${scanId}] SSL scan complete`);
+        } catch (error) {
+          logger.error(`[${scanId}] SSL scan failed:`, error);
+          results.ssl = { findings: [], error: error.message };
+        }
+      })()
+    );
+
+    // Nmap Scan Promise
+    scanPromises.push(
+      (async () => {
+        try {
+          const nmapResults = await scanPorts(hostname);
+          results.nmap = nmapResults;
+          logger.info(`[${scanId}] Nmap scan complete`);
+        } catch (error) {
+          logger.error(`[${scanId}] Nmap scan failed:`, error);
+          results.nmap = { findings: [], detectedServices: [], error: error.message };
+        }
+      })()
+    );
+
+    // Nuclei Scan Promise
+    scanPromises.push(
+      (async () => {
+        try {
+          const nucleiResults = await scanWithNuclei(url);
+          results.nuclei = nucleiResults;
+          logger.info(`[${scanId}] Nuclei scan complete - Found ${nucleiResults.findings?.length || 0} issues`);
+        } catch (error) {
+          logger.error(`[${scanId}] Nuclei scan failed:`, error.message, error.stack);
+          results.nuclei = { findings: [], error: error.message };
+        }
+      })()
+    );
+
+    await Promise.all(scanPromises);
+
+    // Step 4: CVE Check
+    logger.info(`[${scanId}] Step 4/5: Checking CVE database...`);
+    try {
+      if (results.detectedSoftware) {
+        results.cve = await checkVulnerabilities(results.detectedSoftware);
+      } else {
+        results.cve = [];
+      }
+      logger.info(`[${scanId}] CVE check complete`);
+    } catch (error) {
+      logger.error(`[${scanId}] CVE check failed:`, error);
+      results.cve = [];
+    }
+
+    // Step 5: Aggregate results
+    logger.info(`[${scanId}] Step 5/5: Generating final report...`);
+    const finalResults = aggregateResults(
+      results.ssl || { findings: [] },
+      results.nmap || { findings: [] },
+      results.nuclei || { findings: [] },
+      results.detectedSoftware || {},
+      [...quickVulns, ...(results.cve || [])]
+    );
+
+    // Add the scanned URL to results
+    finalResults.url = url;
+
+    logger.info(`[${scanId}] Scan complete - Score: ${finalResults.score}/100, Issues: ${finalResults.totalIssues}`);
+
+    return finalResults;
+
+  } catch (error) {
+    logger.error(`[${scanId}] Fatal scan error:`, error);
+    throw error;
+  }
+}
 
 async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
   const results = {
@@ -238,7 +348,7 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
   try {
     // Step 1: Software Detection
     emit('scan:progress', { step: 'detection', message: 'Detecting technologies...', progress: 10 });
-    
+
     try {
       results.detectedSoftware = await detectSoftware(url);
       emit('scan:step-complete', { step: 'detection', data: results.detectedSoftware, progress: 20 });
@@ -247,10 +357,10 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
       logger.error(`[${scanId}] Software detection failed:`, error);
       emit('scan:error', { step: 'detection', error: error.message });
     }
-    
+
     // Step 2: Quick Vulnerability Check
     emit('scan:progress', { step: 'quick-vuln', message: 'Checking known vulnerabilities...', progress: 25 });
-    
+
     const quickVulns = [];
     if (results.detectedSoftware) {
       if (results.detectedSoftware.webServer) {
@@ -260,7 +370,7 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
         );
         if (vuln) quickVulns.push(vuln);
       }
-      
+
       results.detectedSoftware.libraries?.forEach(lib => {
         if (lib.version) {
           const vuln = quickVulnerabilityCheck(lib.name, lib.version);
@@ -268,7 +378,7 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
         }
       });
     }
-    
+
     emit('scan:step-complete', { step: 'quick-vuln', data: { findings: quickVulns }, progress: 30 });
 
     // Steps 3, 4, 5: Run main scans in parallel
@@ -339,10 +449,10 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
     );
 
     await Promise.all(scanPromises);
-    
+
     // Step 6: CVE Check
     emit('scan:progress', { step: 'cve', message: 'Checking CVE database...', progress: 90 });
-    
+
     try {
       if (results.detectedSoftware) {
         results.cve = await checkVulnerabilities(results.detectedSoftware);
@@ -360,7 +470,7 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
         const progress = 35 + Math.round((completedScans / totalScans) * 55);
         emit('scan:progress', { step: 'scans-update', message: `Completed ${completedScans}/${totalScans} scans...`, progress: 95 });
     }
-    
+
     // Step 7: Aggregate
     emit('scan:progress', { step: 'aggregate', message: 'Generating final report...', progress: 98 });
 
