@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
     import { motion } from 'framer-motion';
     import Header from '../components/Header';
     import Footer from '../components/Footer';
@@ -105,7 +105,6 @@ import React, { useState, useEffect, useRef } from 'react';
         setScanResults(null);
         setScanProgress(0);
         setScanMessage('Initializing scan...');
-        lastStepRef.current = '';
 
         try {
           // Check backend health first
