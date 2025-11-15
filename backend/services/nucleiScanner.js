@@ -37,28 +37,41 @@ async function scanWithNuclei(url) {
       console.warn('Could not create Nuclei config directory:', mkdirError.message);
     }
 
-    // Nuclei command with Lambda-compatible settings:
+    // Nuclei command with smart template handling:
     // -u: Target URL
-    // -t: Explicit templates directory (CRITICAL for Lambda)
+    // -t: Explicit templates directory (Lambda only, auto-detect for local)
     // -jsonl: Output in JSON Lines format
-    // -severity: Only scan for critical, high, and medium severity issues
-    // -o: Output file in /tmp
+    // -severity: Scan for all severity levels
+    // -o: Output file
     // -timeout: Request timeout (30 seconds)
     // -rate-limit: Max 50 requests per second
     // -silent: Reduce console noise
     // -duc: Disable update check (prevents config file creation)
     // -nc: No color output
     // -disable-update-check: Extra safety to prevent updates
-    const templatesDir = '/opt/nuclei-templates'; // Pre-downloaded during Docker build
-    const command = `nuclei -u "${url}" -t "${templatesDir}" -jsonl -severity critical,high,medium,low,info -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
 
-    console.log('[Nuclei] Starting scan in Lambda mode with pre-downloaded templates');
+    // Check if we're in Lambda environment (templates pre-downloaded)
+    const lambdaTemplatesDir = '/opt/nuclei-templates';
+    const isLambda = await fs.stat(lambdaTemplatesDir).then(() => true).catch(() => false);
+
+    let command;
+    if (isLambda) {
+      // Lambda: Use pre-downloaded templates
+      command = `nuclei -u "${url}" -t "${lambdaTemplatesDir}" -jsonl -severity critical,high,medium,low,info -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
+      console.log('[Nuclei] Starting scan in Lambda mode with pre-downloaded templates');
+      console.log(`[Nuclei] Templates directory: ${lambdaTemplatesDir}`);
+    } else {
+      // Local dev: Use default templates (installed via nuclei -update-templates)
+      command = `nuclei -u "${url}" -jsonl -severity critical,high,medium,low,info -o "${outputFile}" -timeout 30 -rate-limit 50 -silent -duc -nc -disable-update-check`;
+      console.log('[Nuclei] Starting scan in local mode with default templates');
+      console.log('[Nuclei] Note: Run "nuclei -update-templates" if templates are missing');
+    }
+
     console.log(`[Nuclei] Command: ${command}`);
-    console.log(`[Nuclei] Templates directory: ${templatesDir}`);
     console.log(`[Nuclei] Output file: ${outputFile}`);
     console.log(`[Nuclei] Target URL: ${url}`);
 
-    // Execute Nuclei with templates directory set via environment variable
+    // Execute Nuclei
     const { stdout, stderr } = await execPromise(command, {
       timeout: 300000, // 5 minutes max
       maxBuffer: 20 * 1024 * 1024, // 20MB buffer
@@ -69,7 +82,7 @@ async function scanWithNuclei(url) {
         TEMP: tmpDir,
         TMP: tmpDir,
         NUCLEI_CONFIG_DIR: nucleiConfigDir,
-        NUCLEI_TEMPLATES_DIRECTORY: templatesDir // Use pre-downloaded templates
+        ...(isLambda ? { NUCLEI_TEMPLATES_DIRECTORY: lambdaTemplatesDir } : {})
       }
     });
 

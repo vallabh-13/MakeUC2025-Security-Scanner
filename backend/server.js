@@ -11,7 +11,6 @@ const { scanSSL } = require('./services/SSLLabsScanner');
 const { scanPorts } = require('./services/nmapScanner');
 const { scanWithNuclei, initializeNucleiTemplates } = require('./services/nucleiScanner');
 const { checkVulnerabilities, quickVulnerabilityCheck } = require('./services/cveDatabase');
-const { generatePDF } = require('./services/pdfGenerator');
 const { aggregateResults } = require('./utils/aggregator');
 const logger = require('./utils/logger');
 const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
@@ -65,7 +64,7 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/health',
       scan: 'POST /api/scan',
-      report: 'GET /api/report/:scanId/pdf'
+      scanStatus: 'GET /api/scan/:scanId/status'
     },
     documentation: 'https://github.com/vallabh-13/MakeUC2025-Security-Scanner'
   });
@@ -386,32 +385,8 @@ async function runScanWithProgress(url, hostname, scanId, emit, socketId) {
   }
 }
 
-// PDF download endpoint
-app.get('/api/report/:scanId/pdf', asyncHandler(async (req, res) => {
-  const { scanId } = req.params;
-
-  logger.info(`[PDF Endpoint] Received request for scan ${scanId}`);
-  logger.info(`[PDF Endpoint] Query params keys: ${Object.keys(req.query).join(', ')}`);
-
-  const results = req.query.results ? JSON.parse(decodeURIComponent(req.query.results)) : null;
-  const url = req.query.url || 'Unknown URL';
-
-  if (!results) {
-    logger.error(`[PDF Endpoint] No results found in request for scan ${scanId}`);
-    return res.status(404).json({ error: 'Scan results not found' });
-  }
-
-  logger.info(`[PDF Endpoint] Results received - Score: ${results.score}, Findings: ${results.findings?.length || 0}`);
-  logger.info(`[PDF Endpoint] Generating PDF for scan ${scanId}, URL: ${url}`);
-
-  const pdfBuffer = await generatePDF(results, url);
-
-  logger.info(`[PDF Endpoint] PDF generated successfully (${pdfBuffer.length} bytes)`);
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="security-report-${scanId}.pdf"`);
-  res.send(pdfBuffer);
-}));
+// PDF generation has been moved to the frontend using @react-pdf/renderer
+// This eliminates Lambda compatibility issues and provides faster, more reliable PDFs
 
 // Error handler (must be last)
 app.use(errorHandler);

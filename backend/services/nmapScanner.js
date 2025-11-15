@@ -11,21 +11,36 @@ const execPromise = util.promisify(exec);
  */
 async function scanPorts(hostname) {
   try {
-    // Nmap command (non-privileged mode):
-    // -sT: TCP connect scan (doesn't require root/raw sockets)
-    // -Pn: Skip host discovery (no ping, avoids raw socket requirement)
+    // Try privileged SYN scan first (requires sudo/root)
+    // -sS: SYN stealth scan (faster and more accurate than TCP connect)
+    // -Pn: Skip host discovery (no ping)
+    // -sV: Version detection (identifies service/version)
+    // --version-intensity 5: Medium intensity version detection
     // -T4: Faster timing (aggressive)
-    // --top-ports 100: Scan the most common 100 ports (reduced for speed)
+    // --top-ports 1000: Scan the most common 1000 ports (comprehensive)
     // -oX -: Output XML to stdout
-    // Note: -sV removed as it requires elevated privileges on most systems
-    const command = `nmap -sT -Pn -T4 --top-ports 100 ${hostname} -oX -`;
+    let command = `sudo -n nmap -sS -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
+    let scanType = 'privileged SYN scan';
 
-    console.log('Running Nmap scan (non-privileged mode)...');
-    const { stdout } = await execPromise(command, {
-      timeout: 180000 // 3 minutes timeout
-    });
+    console.log('Attempting privileged Nmap scan...');
+    try {
+      const { stdout } = await execPromise(command, {
+        timeout: 300000 // 5 minutes timeout
+      });
+      console.log(`✓ Running ${scanType} with service detection`);
+      return await parseNmapXML(stdout);
+    } catch (sudoError) {
+      // Fallback to unprivileged TCP connect scan
+      console.log('Sudo not available, falling back to TCP connect scan');
+      command = `nmap -sT -Pn -sV --version-intensity 5 -T4 --top-ports 1000 ${hostname} -oX -`;
+      scanType = 'TCP connect scan';
 
-    return await parseNmapXML(stdout);
+      console.log(`Running ${scanType} with service detection...`);
+      const { stdout } = await execPromise(command, {
+        timeout: 300000
+      });
+      return await parseNmapXML(stdout);
+    }
 
   } catch (error) {
     console.error('Nmap scan failed:', error.message);
@@ -100,7 +115,7 @@ async function fallbackPortCheck(hostname) {
     severity: 'info',
     title: 'Basic Port Scan Performed',
     description: `Scanned ${commonPorts.length} common ports using TCP connection test. Found ${detectedServices.length} open port(s).`,
-    recommendation: 'This is a basic scan. For comprehensive vulnerability assessment, use nmap with appropriate privileges.'
+    recommendation: 'For comprehensive vulnerability assessment, install Nmap (https://nmap.org/download.html) and configure sudo access for privileged scans: Run "sudo visudo" and add "your_user ALL=(ALL) NOPASSWD: /usr/bin/nmap" to enable passwordless nmap access.'
   });
 
   console.log(`Basic port scan complete: ${detectedServices.length} open ports found`);
