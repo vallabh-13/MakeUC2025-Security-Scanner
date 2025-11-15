@@ -1,15 +1,19 @@
 const { URL } = require('url');
 const dns = require('dns').promises;
+const logger = require('../utils/logger'); // Import logger
 
 async function validateURL(urlString) {
   try {
+    logger.info(`Validating URL: ${urlString}`);
     const url = new URL(urlString);
     
     if (!['http:', 'https:'].includes(url.protocol)) {
+      logger.warn(`Invalid protocol for ${urlString}: ${url.protocol}`);
       return { valid: false, error: 'Only HTTP/HTTPS protocols allowed' };
     }
     
     const hostname = url.hostname;
+    logger.info(`Extracted hostname: ${hostname}`);
     
     // Prevent SSRF attacks
     if (hostname === 'localhost' || 
@@ -32,13 +36,17 @@ async function validateURL(urlString) {
         hostname.startsWith('172.29.') ||
         hostname.startsWith('172.30.') ||
         hostname.startsWith('172.31.')) {
+      logger.warn(`Blocked private/local address: ${hostname}`);
       return { valid: false, error: 'Private/local addresses not allowed' };
     }
     
+    logger.info(`Attempting DNS resolution for hostname: ${hostname}`);
     await dns.resolve(hostname);
+    logger.info(`DNS resolution successful for hostname: ${hostname}`);
     
     return { valid: true, url: url.href, hostname: url.hostname };
   } catch (error) {
+    logger.error(`URL validation failed for ${urlString}: ${error.message}`);
     return { valid: false, error: error.message };
   }
 }
