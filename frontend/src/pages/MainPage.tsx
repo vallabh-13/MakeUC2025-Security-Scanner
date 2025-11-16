@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
     import { motion } from 'framer-motion';
     import Header from '../components/Header';
     import Footer from '../components/Footer';
@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
     import { generatePDF } from '../components/SecurityReportPDF';
     import { toast } from 'react-toastify';
     import { Shield, Search, AlertTriangle, Bug, ExternalLink, Linkedin, Mail } from 'lucide-react';
+    import { io, Socket } from 'socket.io-client';
 
 
 
@@ -88,12 +89,70 @@ import React, { useState, useEffect } from 'react';
       const [isDarkMode, setIsDarkMode] = useState(true);
       const [scanProgress, setScanProgress] = useState(0);
       const [scanMessage, setScanMessage] = useState('');
+      const socketRef = useRef<Socket | null>(null);
 
+      // Initialize Socket.IO connection
       useEffect(() => {
         document.documentElement.classList.add('dark');
+
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
+        // Create Socket.IO connection
+        const socket = io(backendUrl, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
+        });
+
+        socketRef.current = socket;
+
+        // Listen for scan progress updates
+        socket.on('scan:progress', (data: { step: string; message: string; progress: number }) => {
+          console.log('[Socket.IO] Progress update:', data);
+          setScanProgress(data.progress);
+          setScanMessage(data.message);
+        });
+
+        // Listen for scan completion
+        socket.on('scan:complete', (data: any) => {
+          console.log('[Socket.IO] Scan complete:', data);
+          setScanProgress(100);
+          setScanMessage('Scan completed!');
+        });
+
+        // Listen for scan errors
+        socket.on('scan:error', (data: { error: string }) => {
+          console.error('[Socket.IO] Scan error:', data);
+          toast.error(data.error || 'Scan failed', {
+            style: {
+              background: '#000000',
+              color: '#ffffff',
+              border: '1px solid #ef4444'
+            }
+          });
+        });
+
+        // Connection event handlers
+        socket.on('connect', () => {
+          console.log('[Socket.IO] Connected:', socket.id);
+        });
+
+        socket.on('disconnect', () => {
+          console.log('[Socket.IO] Disconnected');
+        });
+
+        socket.on('connect_error', (error) => {
+          console.error('[Socket.IO] Connection error:', error);
+        });
+
+        // Cleanup on unmount
+        return () => {
+          socket.disconnect();
+        };
       }, []);
 
-      // No polling needed - backend returns results synchronously!
+      // Real-time progress updates via Socket.IO!
 
       const toggleDarkMode = () => {
         setIsDarkMode(!isDarkMode);
@@ -123,17 +182,16 @@ import React, { useState, useEffect } from 'react';
             }
           });
 
-          // Update progress messages during scan
-          setScanMessage('Running security scans...');
-          setScanProgress(50);
+          // Get socket ID for real-time progress updates
+          const socketId = socketRef.current?.id;
 
-          // Start the scan - synchronous response (no polling!)
+          // Start the scan with socket ID for real-time progress updates
           const scanResponse = await fetch(`${backendUrl}/api/scan`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify({ url, socketId }),
             signal: AbortSignal.timeout(600000) // 10 minute timeout for full scan
           });
 
