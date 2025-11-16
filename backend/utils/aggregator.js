@@ -70,10 +70,10 @@ function aggregateResults(sslResults, nmapResults, nucleiResults, detectedSoftwa
       severityCounts.info++; // Default to info for unknown severity
     }
   });
-  
-  // Calculate security score (0-100)
-  const score = calculateSecurityScore(severityCounts, uniqueFindings.length);
-  
+
+  // Calculate security score (0-100) - pass isHttpOnly flag for extra penalty
+  const score = calculateSecurityScore(severityCounts, uniqueFindings.length, isHttpOnly);
+
   // Assign letter grade
   const grade = getSecurityGrade(score);
   
@@ -133,9 +133,10 @@ function deduplicateFindings(findings) {
  * Calculate security score from 0-100 based on findings
  * @param {Object} counts - Severity counts object
  * @param {number} total - Total number of findings
+ * @param {boolean} isHttpOnly - Whether the site uses HTTP (not HTTPS)
  * @returns {number} - Security score (0-100)
  */
-function calculateSecurityScore(counts, total) {
+function calculateSecurityScore(counts, total, isHttpOnly = false) {
   // Check if we have any real issues (excluding INFO findings)
   const realIssuesCount = (counts.critical || 0) + (counts.high || 0) + (counts.medium || 0) + (counts.low || 0);
 
@@ -153,12 +154,18 @@ function calculateSecurityScore(counts, total) {
   };
 
   // Calculate total deductions (INFO findings excluded by 0 weight)
-  const deductions =
+  let deductions =
     (counts.critical || 0) * weights.critical +
     (counts.high || 0) * weights.high +
     (counts.medium || 0) * weights.medium +
     (counts.low || 0) * weights.low +
     (counts.info || 0) * weights.info;
+
+  // HTTP-only sites get MASSIVE penalty - no encryption is fundamentally broken
+  // This ensures HTTP sites ALWAYS score lower than HTTPS sites
+  if (isHttpOnly) {
+    deductions += 25; // Extra 25 point penalty on top of the critical finding
+  }
 
   // Calculate score (never below 0)
   const score = Math.max(0, 100 - deductions);
