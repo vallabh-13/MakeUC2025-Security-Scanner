@@ -30,7 +30,7 @@ We built a single web application that handles the entire security lifecycle:
 4. **Vulnerability Scanning** - Tests for known vulnerabilities using Nuclei templates (latest version)
 5. **CVE Database Lookup** - Checks for known vulnerabilities in detected software via NVD API
 6. **Security Headers Analysis** - Checks for missing security headers (CSP, HSTS, X-Frame-Options, etc.)
-7. **Real-time Progress Updates** - Live scan status updates via Socket.IO
+7. **Real-time Progress Updates** - Live scan status updates via REST API polling
 8. **Security Scoring** - Automated security score calculation with lenient scoring (HTTP-only sites not penalized)
 9. **PDF Report Generation** - Client-side PDF generation with detailed findings and remediation steps
 
@@ -317,3 +317,4 @@ This project is licensed under the **Apache License 2.0**
 - **Backend README**: [backend/README.md](./backend/README.md)
 
  
+

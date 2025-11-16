@@ -80,8 +80,30 @@ POST /api/scan
 Content-Type: application/json
 
 {
-  "url": "https://example.com",
-  "socketId": "optional-socket-id"
+  "url": "https://example.com"
+}
+
+Response:
+{
+  "status": "processing",
+  "scanId": "1731741234567",
+  "message": "Scan started. Poll /api/scan/1731741234567/status for progress."
+}
+```
+
+### Get Scan Status (Polling)
+```
+GET /api/scan/:scanId/status
+
+Response:
+{
+  "scanId": "1731741234567",
+  "status": "processing",  // or "completed", "failed"
+  "progress": 45,
+  "message": "Running network and vulnerability scans...",
+  "step": "parallel-scans",
+  "results": null,  // populated when status is "completed"
+  "error": null
 }
 ```
 
@@ -90,15 +112,20 @@ Content-Type: application/json
 GET /api/report/:scanId/pdf?results=<encoded-results>&url=<target-url>
 ```
 
-## WebSocket Events
+## Progress Tracking
 
-The backend uses Socket.io for real-time scan progress updates:
+The backend uses **REST API polling** for real-time scan progress updates:
 
-- `scan:progress` - Scan progress update
-- `scan:step-complete` - A scan step completed
-- `scan:complete` - Entire scan completed
-- `scan:error` - An error occurred
-- `scan:failed` - Scan failed
+1. **Client initiates scan**: POST to `/api/scan` returns `scanId` immediately
+2. **Client polls for updates**: GET `/api/scan/:scanId/status` every 2 seconds
+3. **Backend updates progress**: Scan progress stored in memory (Map)
+4. **Scan completes**: Status changes to `completed` with full results
+
+Progress updates include:
+- `progress`: 0-100 percentage
+- `message`: Human-readable status message
+- `step`: Current scan step (detection, ssl, nmap, nuclei, cve, aggregate)
+- `results`: Final results when `status === 'completed'`
 
 ## Project Structure
 
