@@ -54,7 +54,7 @@ const io = socketIo(server, {
   pingTimeout: 60000,
   pingInterval: 25000,
   connectTimeout: 45000,
-  transports: ['websocket', 'polling']
+  transports: ['polling'] // AWS Lambda Function URLs don't support WebSocket
 });
 
 // Use cors middleware properly
