@@ -5,8 +5,6 @@
 - **Live Website:** [Demo Link](https://securityscanner.netlify.app/)
 - **Demo Video:** [Test Link](https://your-test-link-here)
 
-- Click the links above to explore the running application and test its functionality.
-
 ## 🔥 Why We Built This
 
 * **The Problem:** Web security analysis is often **manual**, **slow**, and **requires multiple specialized command-line tools**, creating a high barrier to entry. This leaves countless small to mid-sized websites exposed to easily preventable attacks, as comprehensive auditing is too complex or costly for most developers and site owners.
