@@ -142,13 +142,13 @@ function calculateSecurityScore(counts, total) {
   // If no real issues, return perfect score even if INFO findings exist
   if (realIssuesCount === 0) return 100;
 
-  // Lenient weight system - more forgiving scoring, but strict on critical issues
+  // Balanced weight system - reasonable scoring that rewards good security
   // INFO findings do NOT affect the score (weight = 0)
   const weights = {
-    critical: 20,  // Critical issues deserve harsh penalty (e.g., no HTTPS)
-    high: 7,       // High severity - reduced from 10 to 7 (more lenient)
-    medium: 3,     // Medium severity - reduced from 5 to 3 (more lenient)
-    low: 1,        // Low severity - reduced from 2 to 1 (more lenient)
+    critical: 15,  // Critical issues are serious but not devastating
+    high: 5,       // High severity - balanced penalty
+    medium: 2,     // Medium severity - minor impact
+    low: 0.5,      // Low severity - minimal impact
     info: 0        // INFO findings are informational only - do NOT affect score
   };
 
@@ -172,10 +172,10 @@ function calculateSecurityScore(counts, total) {
  * @returns {string} - Letter grade (A-F)
  */
 function getSecurityGrade(score) {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
+  if (score >= 85) return 'A';
+  if (score >= 70) return 'B';
+  if (score >= 55) return 'C';
+  if (score >= 40) return 'D';
   return 'F';
 }
 

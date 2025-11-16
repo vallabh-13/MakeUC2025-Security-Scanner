@@ -106,11 +106,33 @@ import React, { useState, useEffect } from 'react';
         setScanProgress(0);
         setScanMessage('Initializing scan...');
 
+        // Progress simulation for smooth loading UX
+        let currentProgress = 0;
+        const progressInterval = setInterval(() => {
+          currentProgress += Math.random() * 3; // Random increments for natural feel
+          if (currentProgress > 95) currentProgress = 95; // Cap at 95% until scan completes
+          setScanProgress(Math.floor(currentProgress));
+
+          // Update messages based on progress
+          if (currentProgress < 20) {
+            setScanMessage('Initializing scan...');
+          } else if (currentProgress < 40) {
+            setScanMessage('Analyzing SSL/TLS configuration...');
+          } else if (currentProgress < 60) {
+            setScanMessage('Scanning ports and services...');
+          } else if (currentProgress < 80) {
+            setScanMessage('Running vulnerability checks...');
+          } else {
+            setScanMessage('Finalizing security analysis...');
+          }
+        }, 2000); // Update every 2 seconds
+
         try {
           // Check backend health first
           const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
           const healthResponse = await fetch(`${backendUrl}/api/health`);
           if (!healthResponse.ok) {
+            clearInterval(progressInterval);
             throw new Error('Backend service unavailable');
           }
 
@@ -123,10 +145,6 @@ import React, { useState, useEffect } from 'react';
             }
           });
 
-          // Update progress messages during scan
-          setScanMessage('Running security scans...');
-          setScanProgress(50);
-
           // Start the scan - synchronous response (no polling!)
           const scanResponse = await fetch(`${backendUrl}/api/scan`, {
             method: 'POST',
@@ -136,6 +154,9 @@ import React, { useState, useEffect } from 'react';
             body: JSON.stringify({ url }),
             signal: AbortSignal.timeout(600000) // 10 minute timeout for full scan
           });
+
+          // Stop progress simulation
+          clearInterval(progressInterval);
 
           if (!scanResponse.ok) {
             const errorData = await scanResponse.json().catch(() => ({ error: 'Scan failed' }));
@@ -163,6 +184,7 @@ import React, { useState, useEffect } from 'react';
           }
 
         } catch (error: any) {
+          clearInterval(progressInterval);
           setIsScanning(false);
           setScanProgress(0);
           setScanMessage('');
