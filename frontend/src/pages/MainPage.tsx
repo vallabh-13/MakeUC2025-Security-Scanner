@@ -88,7 +88,7 @@ import React, { useState, useEffect, useRef } from 'react';
       const [isDarkMode, setIsDarkMode] = useState(true);
       const [scanProgress, setScanProgress] = useState(0);
       const [scanMessage, setScanMessage] = useState('');
-      const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+      const pollingIntervalRef = useRef<number | null>(null);
 
       // Initialize dark mode
       useEffect(() => {
