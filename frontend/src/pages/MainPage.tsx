@@ -98,8 +98,9 @@ import React, { useState, useEffect, useRef } from 'react';
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
         // Create Socket.IO connection
+        // Note: AWS Lambda Function URLs don't support WebSocket, so we use polling only
         const socket = io(backendUrl, {
-          transports: ['websocket', 'polling'],
+          transports: ['polling'], // Use HTTP long-polling (Lambda doesn't support WebSocket)
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionAttempts: 5
