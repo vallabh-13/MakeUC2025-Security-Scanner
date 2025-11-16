@@ -38,9 +38,9 @@ We built a single web application that handles the entire security lifecycle:
 
 ## Team Contributors
 
-- [Ilyaas K](https://www.linkedin.com/in/ilyaask/)
+- [Ilyaas Kapadia](https://www.linkedin.com/in/ilyaask/)
 - [Bhanudas Mahadik](https://www.linkedin.com/in/bhanudas-mahadik/)
-- [Nguyen Hile](https://www.linkedin.com/in/nhiledn06/)
+- [Nhi T.Le](https://www.linkedin.com/in/nhiledn06/)
 - [An Nguyen Le](https://www.linkedin.com/in/an-nguyen-le-782788342/)
   
 ---
