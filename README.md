@@ -32,14 +32,18 @@ We built a single web application that handles the entire security lifecycle:
 ---
 
 ## Team Contributors
-*   [**Please add team member names here**]
 
+- [Ilyaas K](https://www.linkedin.com/in/ilyaask/)
+- [Bhanudas Mahadik](https://www.linkedin.com/in/bhanudas-mahadik/)
+- [Nguyen Hile](https://www.linkedin.com/in/nhiledn06/)
+- [An Nguyen Le](https://www.linkedin.com/in/an-nguyen-le-782788342/)
+  
 ---
 
 ## System Architecture Diagram
 (A visual diagram will be inserted here. Below is a textual representation of the system flow.)
 
-**[Diagram Placeholder]**
+![alt text](Diagram/makeuc-2025)
 
 ---
 
