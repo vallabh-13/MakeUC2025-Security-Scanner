@@ -2,8 +2,8 @@
 
 ## Click the links below to explore the running application and test its functionality.
 
-- **Live Website:** [Demo Link](https://securityscanner.netlify.app/)
-- **Demo Video:** [Test Link](https://your-test-link-here)
+- **Live Website:** [Test Website](https://securityscanner.netlify.app/)
+- **Demo Video:** [Demo Video Link](https://youtu.be/Hezf52wJN08)
 
 ## 🔥 Why We Built This
 
