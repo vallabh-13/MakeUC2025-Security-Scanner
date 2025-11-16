@@ -48,7 +48,7 @@ We built a single web application that handles the entire security lifecycle:
 ## System Architecture Diagram
 (A visual diagram will be inserted here. Below is a textual representation of the system flow.)
 
-![alt text](Diagram/makeuc-2025)
+![alt text](Diagram/makeuc-2025.png)
 
 ---
 
