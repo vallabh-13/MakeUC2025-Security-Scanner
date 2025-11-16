@@ -324,6 +324,11 @@ import React, { useState, useEffect } from 'react';
           description: 'Runs Nuclei templates to detect known vulnerabilities and misconfigurations.'
         },
         {
+          icon: <AlertTriangle className="h-8 w-8" />,
+          title: 'Software Detection & CVE Lookup',
+          description: 'Identifies web technologies, frameworks, and libraries, then queries the CVE database for known vulnerabilities in detected software.'
+        },
+        {
           icon: <Shield className="h-8 w-8" />,
           title: 'Results',
           description: 'View the scan summary, access all security findings, and download the PDF report instantly.'
